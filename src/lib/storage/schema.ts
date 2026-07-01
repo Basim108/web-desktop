@@ -3,11 +3,20 @@ import type { GridCell } from "../grid/types";
 /** Positions of a folder's direct bookmark children: bookmarkId -> cell. */
 export type FolderPositions = Record<string, GridCell>;
 
+export type FolderSidebarDisplay =
+  "icon-only" | "label-only" | "icon-and-label";
+
+/** A folder's own sidebar row settings. Independent per folder — no inheritance chain (unlike grid settings). */
+export interface FolderSettings {
+  sidebarDisplay: FolderSidebarDisplay;
+  /** Metadata mirror of whether an IndexedDB icon record exists (Group 7), so UI can gate icon options without an async IndexedDB read. */
+  hasCustomIcon: boolean;
+}
+
 /**
- * Full chrome.storage.local shape. Only `positions` is implemented in the
- * bookmark data layer (Group 2); the remaining keys are reserved so later
- * groups (grid/label/sidebar settings) share one documented schema instead
- * of ad-hoc keys.
+ * Full chrome.storage.local shape. Only `positions` and `folderSettings`
+ * are implemented so far; the remaining keys are reserved so later groups
+ * (grid/label settings) share one documented schema instead of ad-hoc keys.
  */
 export interface StorageSchema {
   /** folderId -> (bookmarkId -> cell) */
@@ -16,8 +25,8 @@ export interface StorageSchema {
   gridSettings?: Record<string, unknown>;
   /** bookmarkId -> label display + custom icon ref (Groups 7/8) */
   bookmarkSettings?: Record<string, unknown>;
-  /** folderId -> sidebar display + custom icon ref (Groups 3/7) */
-  folderSettings?: Record<string, unknown>;
+  /** folderId -> sidebar display settings */
+  folderSettings: Record<string, FolderSettings>;
 }
 
 export const STORAGE_KEYS = {
