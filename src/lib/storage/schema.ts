@@ -13,16 +13,39 @@ export interface FolderSettings {
   hasCustomIcon: boolean;
 }
 
+export type GridMode = "auto" | "fixed";
+
+/** A folder's own grid layout override. Any subset of fields may be set; unset fields fall through the inheritance chain individually is NOT supported — a folder's override is all-or-nothing per the "nearest ancestor" resolution model. */
+export interface GridSettings {
+  mode: GridMode;
+  /** Icon px size cap in both modes. */
+  maxIconSize: number;
+  /** Icon px size floor: drives auto-mode's column/row count formula, and triggers fixed-mode scrolling instead of shrinking further. */
+  minIconSize: number;
+  /** Only meaningful when mode is "fixed". */
+  fixedCols?: number;
+  fixedRows?: number;
+}
+
+export const GLOBAL_DEFAULT_GRID_SETTINGS: GridSettings = {
+  mode: "auto",
+  maxIconSize: 96,
+  minIconSize: 48,
+};
+
 /**
- * Full chrome.storage.local shape. Only `positions` and `folderSettings`
- * are implemented so far; the remaining keys are reserved so later groups
- * (grid/label settings) share one documented schema instead of ad-hoc keys.
+ * Full chrome.storage.local shape. Only `positions`, `folderSettings`, and
+ * `gridSettings` are implemented so far; the remaining key is reserved so
+ * later groups (label settings) share one documented schema instead of
+ * ad-hoc keys.
  */
 export interface StorageSchema {
   /** folderId -> (bookmarkId -> cell) */
   positions: Record<string, FolderPositions>;
-  /** folderId -> grid layout settings (Group 4) */
-  gridSettings?: Record<string, unknown>;
+  /** folderId -> grid layout override (sparse; absence means "inherit") */
+  gridSettings: Record<string, GridSettings>;
+  /** The global fallback grid settings, used when no folder in the ancestor chain has an override. */
+  globalGridSettings: GridSettings;
   /** bookmarkId -> label display + custom icon ref (Groups 7/8) */
   bookmarkSettings?: Record<string, unknown>;
   /** folderId -> sidebar display settings */
@@ -32,6 +55,7 @@ export interface StorageSchema {
 export const STORAGE_KEYS = {
   POSITIONS: "positions",
   GRID_SETTINGS: "gridSettings",
+  GLOBAL_GRID_SETTINGS: "globalGridSettings",
   BOOKMARK_SETTINGS: "bookmarkSettings",
   FOLDER_SETTINGS: "folderSettings",
 } as const satisfies Record<string, keyof StorageSchema>;

@@ -55,3 +55,22 @@ export async function getSubfolders(
   const children = await getFolderChildren(folderId);
   return splitChildren(children).folders;
 }
+
+/**
+ * A folder's ancestor chain, starting with the folder itself and walking
+ * up through each parent to (but not including) the tree root. Used to
+ * resolve settings that inherit from the nearest ancestor override.
+ */
+export async function getFolderAncestorChain(
+  folderId: string,
+): Promise<string[]> {
+  const chain: string[] = [];
+  let currentId: string | undefined = folderId;
+  while (currentId && currentId !== "0") {
+    chain.push(currentId);
+    const results: chrome.bookmarks.BookmarkTreeNode[] =
+      await chrome.bookmarks.get(currentId);
+    currentId = results[0]?.parentId;
+  }
+  return chain;
+}
