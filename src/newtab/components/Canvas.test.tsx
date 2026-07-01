@@ -3,10 +3,20 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installChromeMock } from "../../test/chromeMock";
 import { installResizeObserverMock } from "../../test/resizeObserverMock";
+import { DndTestProvider } from "../../test/DndTestProvider";
 import { Canvas } from "./Canvas";
 
 const mock = installChromeMock();
 const resizeMock = installResizeObserverMock();
+
+/** Canvas relies on useDndMonitor, which requires a DndContext ancestor — in the real app that's provided by App. */
+function renderCanvas(folderId: string) {
+  return render(
+    <DndTestProvider>
+      <Canvas folderId={folderId} />
+    </DndTestProvider>,
+  );
+}
 
 function bookmarkNode(
   id: string,
@@ -56,7 +66,7 @@ describe("Canvas", () => {
       mock.addNode(bookmarkNode(`b${i}`, "f1", i));
     }
 
-    render(<Canvas folderId="f1" />);
+    renderCanvas("f1");
     await resizeCanvas(200, 100);
 
     await waitFor(() => {
@@ -74,7 +84,7 @@ describe("Canvas", () => {
     }
     const user = userEvent.setup();
 
-    render(<Canvas folderId="f1" />);
+    renderCanvas("f1");
     await resizeCanvas(200, 100);
     await waitFor(() => {
       expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
@@ -98,7 +108,7 @@ describe("Canvas", () => {
     });
     const user = userEvent.setup();
 
-    render(<Canvas folderId="f1" />);
+    renderCanvas("f1");
     await resizeCanvas(200, 100);
 
     const icon = await screen.findByText("Bookmark b0");
@@ -115,7 +125,7 @@ describe("Canvas", () => {
     mock.addNode(folderNode("f1", "0"));
     mock.addNode(bookmarkNode("b0", "f1", 0));
 
-    render(<Canvas folderId="f1" />);
+    renderCanvas("f1");
     await resizeCanvas(200, 100);
     // 200x100 at default settings (min 48) -> capacity 4x2 = 8 cells total.
     await waitFor(() => {
@@ -127,7 +137,7 @@ describe("Canvas", () => {
     mock.addNode(folderNode("f1", "0"));
     mock.addNode(bookmarkNode("b0", "f1", 0));
 
-    render(<Canvas folderId="f1" />);
+    renderCanvas("f1");
     await resizeCanvas(200, 100);
 
     const icon = (await screen.findByText("Bookmark b0")).closest("button");
@@ -139,7 +149,7 @@ describe("Canvas", () => {
     mock.addNode(bookmarkNode("b0", "f1", 0));
     mock.addNode(bookmarkNode("b1", "f1", 1));
 
-    render(<Canvas folderId="f1" />);
+    renderCanvas("f1");
     await resizeCanvas(200, 100);
 
     await waitFor(() => {
