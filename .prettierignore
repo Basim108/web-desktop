@@ -1,0 +1,13 @@
+dist
+node_modules
+coverage
+playwright-report
+test-results
+public/icons
+.claude
+openspec
+package-lock.json
+.devcontainer
+.github
+README.md
+LICENSE
