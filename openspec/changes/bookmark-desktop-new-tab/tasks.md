@@ -24,14 +24,14 @@
 
 ## 4. Canvas Grid & Pagination
 
-- [ ] 4.1 Build canvas grid component rendering current folder's bookmark icons
-- [ ] 4.2 Implement grid-settings resolution chain (folder → nearest ancestor → global default)
-- [ ] 4.3 Implement auto-mode sizing formula (icon scaling below max size, column/row growth at max size)
-- [ ] 4.4 Implement fixed-mode sizing (locked rows×cols, icon-only scaling, scrollable floor below min size)
-- [ ] 4.5 Implement column-growth backfill (pull items forward from later pages, cascading)
-- [ ] 4.6 Implement row-growth empty-cell behavior (no backfill)
-- [ ] 4.7 Implement shrink compaction (fill same-page empty cells first) and cascade push to next page
-- [ ] 4.8 Implement pagination UI (page indicator/navigation)
+- [x] 4.1 Build canvas grid component rendering current folder's bookmark icons
+- [x] 4.2 Implement grid-settings resolution chain (folder → nearest ancestor → global default)
+- [x] 4.3 Implement auto-mode sizing formula (icon scaling below max size, column/row growth at max size)
+- [x] 4.4 Implement fixed-mode sizing (locked rows×cols, icon-only scaling, scrollable floor below min size)
+- [x] 4.5 Implement column-growth backfill (pull items forward from later pages, cascading)
+- [x] 4.6 Implement row-growth empty-cell behavior (no backfill)
+- [x] 4.7 Implement shrink compaction (fill same-page empty cells first) and cascade push to next page
+- [x] 4.8 Implement pagination UI (page indicator/navigation)
 
 ## 5. Position Model & Drag Interactions
 
