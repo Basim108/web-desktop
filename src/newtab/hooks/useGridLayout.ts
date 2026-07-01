@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDndMonitor } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
 import { getBookmarksInFolder } from "../../lib/bookmarks/read";
 import type { PositionUpdate } from "../../lib/grid/dragDrop";
 import { paginate } from "../../lib/grid/layout";
@@ -149,6 +151,42 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
       cancelled = true;
     };
   }, [folderId, settingsLoaded, capacity, size.width, size.height]);
+
+  // Dragging one of this folder's bookmarks onto a sidebar folder row moves
+  // it via the bookmarks API (see App's shared DndContext); optimistically
+  // drop it from this view immediately rather than waiting for a reload —
+  // full cross-tab structure sync is wired in Group 9.
+  useDndMonitor({
+    onDragEnd(event: DragEndEvent) {
+      const activeData = event.active.data.current as
+        { type?: string; sourceFolderId?: string } | undefined;
+      if (
+        activeData?.type !== "bookmark" ||
+        activeData.sourceFolderId !== folderId
+      ) {
+        return;
+      }
+      const overData = event.over?.data.current as
+        { type?: string; folderId?: string } | undefined;
+      if (overData?.type !== "folder" || overData.folderId === folderId) {
+        return;
+      }
+      const bookmarkId = String(event.active.id);
+      setFolderData((current) =>
+        current && current.folderId === folderId
+          ? {
+              ...current,
+              bookmarks: current.bookmarks.filter((b) => b.id !== bookmarkId),
+            }
+          : current,
+      );
+      setPositions((current) => {
+        if (!(bookmarkId in current)) return current;
+        const { [bookmarkId]: _removed, ...rest } = current;
+        return rest;
+      });
+    },
+  });
 
   // paginate() is a pure display computation: it's re-run on every render
   // against the *current* capacity, so shrink-driven compaction/overflow

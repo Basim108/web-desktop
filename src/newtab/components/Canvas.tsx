@@ -1,9 +1,4 @@
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { useDndMonitor } from "@dnd-kit/core";
 import type { DragEndEvent, DragMoveEvent } from "@dnd-kit/core";
 import { resolveDrop } from "../../lib/grid/dragDrop";
 import { useGridLayout } from "../hooks/useGridLayout";
@@ -39,10 +34,6 @@ export function Canvas({ folderId }: CanvasProps) {
     moveBookmarks,
   } = useGridLayout(folderId);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  );
-
   const page = pages[currentPage] ?? [];
   const hasMultiplePages = pages.length > 1;
   const canGoPrev = currentPage > 0;
@@ -56,24 +47,37 @@ export function Canvas({ folderId }: CanvasProps) {
     }
   });
 
-  function handleDragMove(event: DragMoveEvent) {
-    const draggedRect = event.active.rect.current.translated;
-    const containerRect = containerRef.current?.getBoundingClientRect();
-    if (!draggedRect || !containerRect) return;
-    edgePagination.handleDragMove(draggedRect, containerRect);
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    edgePagination.reset();
-    const target = event.over ? parseCellKey(String(event.over.id)) : null;
-    if (!target) return;
-    const updates = resolveDrop(
-      String(event.active.id),
-      { page: currentPage, row: target.row, col: target.col },
-      page,
-    );
-    void moveBookmarks(updates);
-  }
+  useDndMonitor({
+    onDragMove(event: DragMoveEvent) {
+      const activeData = event.active.data.current as
+        { type?: string } | undefined;
+      if (activeData?.type !== "bookmark") return;
+      const draggedRect = event.active.rect.current.translated;
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      if (!draggedRect || !containerRect) return;
+      edgePagination.handleDragMove(draggedRect, containerRect);
+    },
+    onDragEnd(event: DragEndEvent) {
+      const activeData = event.active.data.current as
+        { type?: string } | undefined;
+      if (activeData?.type !== "bookmark") return;
+      edgePagination.reset();
+      const overData = event.over?.data.current as
+        { type?: string } | undefined;
+      if (!event.over || overData?.type !== "cell") return;
+      const target = parseCellKey(String(event.over.id));
+      if (!target) return;
+      const updates = resolveDrop(
+        String(event.active.id),
+        { page: currentPage, row: target.row, col: target.col },
+        page,
+      );
+      void moveBookmarks(updates);
+    },
+    onDragCancel() {
+      edgePagination.reset();
+    },
+  });
 
   return (
     <div className="canvas" data-folder-id={folderId} ref={containerRef}>
@@ -81,42 +85,39 @@ export function Canvas({ folderId }: CanvasProps) {
         <p className="canvas-loading">Loading…</p>
       ) : (
         <>
-          <DndContext
-            sensors={sensors}
-            onDragMove={handleDragMove}
-            onDragEnd={handleDragEnd}
-            onDragCancel={() => edgePagination.reset()}
+          <div
+            className={`canvas-grid${needsScroll ? " canvas-grid--scrollable" : ""}`}
+            style={{
+              gridTemplateColumns: `repeat(${capacity.cols}, ${iconSize}px)`,
+              gridTemplateRows: `repeat(${capacity.rows}, ${iconSize}px)`,
+            }}
           >
-            <div
-              className={`canvas-grid${needsScroll ? " canvas-grid--scrollable" : ""}`}
-              style={{
-                gridTemplateColumns: `repeat(${capacity.cols}, ${iconSize}px)`,
-                gridTemplateRows: `repeat(${capacity.rows}, ${iconSize}px)`,
-              }}
-            >
-              {Array.from({ length: capacity.rows }, (_, row) =>
-                Array.from({ length: capacity.cols }, (_, col) => {
-                  const entry = page.find(
-                    (e) => e.cell.row === row && e.cell.col === col,
-                  );
-                  const bookmark = entry
-                    ? bookmarksById.get(entry.bookmarkId)
-                    : undefined;
-                  return (
-                    <GridCell
-                      key={cellKey(row, col)}
-                      cellKey={cellKey(row, col)}
-                      size={iconSize}
-                    >
-                      {bookmark && (
-                        <BookmarkIcon bookmark={bookmark} size={iconSize} />
-                      )}
-                    </GridCell>
-                  );
-                }),
-              )}
-            </div>
-          </DndContext>
+            {Array.from({ length: capacity.rows }, (_, row) =>
+              Array.from({ length: capacity.cols }, (_, col) => {
+                const entry = page.find(
+                  (e) => e.cell.row === row && e.cell.col === col,
+                );
+                const bookmark = entry
+                  ? bookmarksById.get(entry.bookmarkId)
+                  : undefined;
+                return (
+                  <GridCell
+                    key={cellKey(row, col)}
+                    cellKey={cellKey(row, col)}
+                    size={iconSize}
+                  >
+                    {bookmark && (
+                      <BookmarkIcon
+                        bookmark={bookmark}
+                        size={iconSize}
+                        folderId={folderId}
+                      />
+                    )}
+                  </GridCell>
+                );
+              }),
+            )}
+          </div>
 
           {hasMultiplePages && (
             <nav className="canvas-pagination" aria-label="Canvas pages">

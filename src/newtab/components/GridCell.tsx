@@ -8,7 +8,10 @@ interface GridCellProps {
 }
 
 export function GridCell({ cellKey, size, children }: GridCellProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: cellKey });
+  const { setNodeRef, isOver } = useDroppable({
+    id: cellKey,
+    data: { type: "cell" },
+  });
 
   return (
     <div
