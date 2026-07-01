@@ -1,0 +1,44 @@
+name: Security Scan
+
+on:
+  schedule:
+    # Weekly, matching Dependabot's cadence (.github/dependabot.yml).
+    - cron: "0 3 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Retire.js — known-vulnerable JS library scan
+        run: npx --yes retire --path dist --outputformat text
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Semgrep — dangerous-function/pattern scan
+        run: |
+          semgrep --error \
+            --config p/security-audit \
+            --config p/javascript \
+            --config p/typescript \
+            --exclude node_modules --exclude dist \
+            --exclude "*.test.*" --exclude e2e \
+            src/ manifest.config.ts

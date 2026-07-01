@@ -147,3 +147,7 @@ playwright/.cache/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Packaged .crx + signing key (built on demand for security scans/store
+# submission, never committed — the .pem is a private key)
+security/

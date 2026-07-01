@@ -48,11 +48,16 @@ etc.) are tracked via OpenSpec changes, not this file.
 - Audit dependencies (`npm audit` / Dependabot)
 - No off-device data transmission beyond declared favicon fetches
   (HTTPS only)
-- Security tooling: [Tarnish](https://github.com/mandatoryprogrammer/tarnish)
-  (dangerous-function/CSP/vulnerable-library scan of the packaged `.crx`,
-  run before each Web Store submission) and
-  [ThreatXtension](https://github.com/barvhaim/ThreatXtension)
-  (AI-assisted SAST + threat-intel scan)
+- Security tooling (free, no API keys, CI-friendly): `eslint-plugin-no-unsanitized`
+  (already gates `npm run lint`/CI — blocks unsanitized `innerHTML`/`insertAdjacentHTML`
+  etc.), [Retire.js](https://github.com/RetireJS/retire.js) (`npx retire`,
+  scans for known-vulnerable JS libraries in the packaged extension), and
+  [Semgrep](https://semgrep.dev/) community rulesets (`p/security-audit`,
+  `p/javascript`, run via the free `semgrep` CLI — dangerous-function/pattern
+  scan). Retire.js/Semgrep run weekly + on-demand via
+  `.github/workflows/security-scan.yml` (separate from per-PR CI, so a
+  finding never blocks a merge). See `SECURITY.md` for the manual steps
+  around packing a stable-keyed `.crx` for an actual Web Store submission.
 
 ## Development Best Practices (required)
 

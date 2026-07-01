@@ -79,7 +79,7 @@
 
 ## 11. Pre-Publish Security Scan
 
-- [ ] 11.1 Build the packaged `.crx` for scanning
-- [ ] 11.2 Run Tarnish against the packaged `.crx` (dangerous-function/CSP/vulnerable-library scan); resolve findings
-- [ ] 11.3 Run ThreatXtension against the extension code; resolve findings
-- [ ] 11.4 Repeat 11.1–11.3 before each Chrome Web Store submission (manual/scheduled, not part of per-PR CI)
+- [x] 11.1 Build the packaged `.crx` for scanning
+- [x] 11.2 Run Retire.js (`npx retire`) against the packaged extension — known-vulnerable JS library scan; resolve findings
+- [x] 11.3 Run Semgrep (`p/security-audit`, `p/javascript` community rulesets) against the extension source — dangerous-function/pattern scan; resolve findings
+- [x] 11.4 Repeat 11.2–11.3 automatically (`.github/workflows/security-scan.yml`, weekly + on-demand, separate from per-PR CI); 11.1's *stable-keyed* `.crx` for an actual Web Store submission is manual — see `SECURITY.md`
