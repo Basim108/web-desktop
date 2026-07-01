@@ -28,6 +28,9 @@ export const test = base.extend<{
       worker = await context.waitForEvent("serviceworker");
     }
     const extensionId = worker.url().split("/")[2];
+    if (!extensionId) {
+      throw new Error(`Could not parse extension id from ${worker.url()}`);
+    }
     await use(extensionId);
   },
 });
