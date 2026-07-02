@@ -28,8 +28,14 @@ log "Installing pipx (needed for Semgrep, avoids Debian's PEP 668 system-Python 
 if ! command -v pipx >/dev/null 2>&1; then
   sudo apt-get update -qq
   sudo apt-get install -y -qq pipx
-  pipx ensurepath
 fi
+
+# The devcontainer python feature sets PIPX_HOME/PIPX_BIN_DIR to /usr/local/py-utils,
+# but (with installTools disabled) never creates/chowns that root-owned directory, so
+# pipx can't write there as the non-root user. Use a user-writable location instead.
+export PIPX_HOME="$HOME/.local/pipx"
+export PIPX_BIN_DIR="$HOME/.local/bin"
+pipx ensurepath
 
 log "Installing Semgrep (SEC-11.3 dangerous-function/pattern scan; see SECURITY.md)"
 pipx install --force semgrep
