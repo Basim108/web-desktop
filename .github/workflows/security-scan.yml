@@ -1,6 +1,10 @@
 name: Security Scan
 
 on:
+  push:
+    paths:
+      - "src/**"
+      - ".github/**"
   schedule:
     # Weekly, matching Dependabot's cadence (.github/dependabot.yml).
     - cron: "0 3 * * 1"

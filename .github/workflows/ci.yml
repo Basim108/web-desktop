@@ -2,9 +2,15 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    paths:
+      - "src/**"
+      - "e2e/**"
+      - ".github/**"
   push:
-    branches: [main]
+    paths:
+      - "src/**"
+      - "e2e/**"
+      - ".github/**"
 
 jobs:
   ci:
