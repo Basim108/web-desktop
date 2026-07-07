@@ -22,5 +22,5 @@
 ## 4. Spec/documentation sync (this change)
 
 - [x] 4.1 Write proposal.md, design.md, and delta specs for `bookmark-canvas`, `bookmark-icons`, `folder-sidebar`
-- [ ] 4.2 Review the delta specs against the actual shipped behavior one more time before archiving
+- [x] 4.2 Review the delta specs against the actual shipped behavior one more time before archiving
 - [ ] 4.3 Run `openspec archive harden-bookmark-lifecycle-safety` to merge the deltas into `openspec/specs/`

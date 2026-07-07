@@ -2,7 +2,6 @@
 
 ## Purpose
 TBD - created by archiving change bookmark-desktop-new-tab. Update Purpose after archive.
-
 ## Requirements
 ### Requirement: Default Favicon Icon
 The system SHALL display a bookmark's favicon as its icon by default, including when only a small native favicon size is available.
@@ -56,3 +55,15 @@ The system SHALL render all custom icon images via an `<img>` element or blob UR
 #### Scenario: Custom icon rendered as image source, not inline markup
 - **WHEN** a bookmark's custom icon is displayed
 - **THEN** it is rendered via an image element/blob source and its file content is never parsed or injected as inline DOM markup
+
+### Requirement: Custom Icon Cleanup on Removal
+The system SHALL delete a bookmark's or folder's custom icon image from storage when that bookmark or folder is removed via `chrome.bookmarks`, so that no orphaned icon data persists after removal.
+
+#### Scenario: Removing a bookmark deletes its custom icon
+- **WHEN** a bookmark with a custom uploaded icon is removed via `chrome.bookmarks`
+- **THEN** its custom icon image is deleted from storage
+
+#### Scenario: Removing a folder deletes its custom icon
+- **WHEN** a folder with a custom uploaded icon is removed via `chrome.bookmarks`
+- **THEN** its custom icon image is deleted from storage
+

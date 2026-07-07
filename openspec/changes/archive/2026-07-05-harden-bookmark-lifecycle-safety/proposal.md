@@ -6,7 +6,7 @@ A full-project code review (`code-reviews/0001-web-desktop.md`, findings #1, #3,
 
 - `bookmark-canvas`: the click-to-navigate requirement now validates the bookmark's URL scheme against an allowlist and blocks navigation for dangerous schemes (`javascript:`, `data:`, `chrome:`, etc.) instead of navigating unconditionally.
 - `bookmark-canvas`: removing a bookmark or folder now cleans up its associated settings and grid-layout overrides (`bookmarkSettings`, `folderSettings`, `gridSettings`) instead of leaving them orphaned in storage.
-- `bookmark-icons`: removing a bookmark now also deletes its custom icon blob from IndexedDB, instead of leaving it orphaned once the bookmark no longer exists.
+- `bookmark-icons`: removing a bookmark or folder now also deletes its custom icon blob from IndexedDB, instead of leaving it orphaned once the item no longer exists.
 - `folder-sidebar`: folder-to-folder drag nesting now rejects descendant-cycle drops and protected-root-folder moves before calling the bookmarks API, and reverts optimistic UI state (resyncs) if `chrome.bookmarks.move` is rejected for any other reason.
 
 ## Capabilities
@@ -16,7 +16,7 @@ A full-project code review (`code-reviews/0001-web-desktop.md`, findings #1, #3,
 
 ### Modified Capabilities
 - `bookmark-canvas`: "Bookmark Desktop Canvas Display" requirement gains URL-scheme validation before navigation; new requirement for settings/grid-override cleanup on bookmark/folder removal.
-- `bookmark-icons`: new requirement for custom icon cleanup on bookmark removal (extends the existing user-initiated "Custom Icon Removal" requirement to also cover removal-triggered cleanup).
+- `bookmark-icons`: new requirement for custom icon cleanup on bookmark or folder removal (extends the existing user-initiated "Custom Icon Removal" requirement to also cover removal-triggered cleanup for either node type).
 - `folder-sidebar`: "Folder-to-Folder Drag Nesting" requirement gains cycle/protected-root guards and resync-on-rejection behavior.
 
 ## Impact
