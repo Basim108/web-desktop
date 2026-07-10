@@ -9,6 +9,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { Canvas } from "./components/Canvas";
 import { Sidebar } from "./components/Sidebar";
 import { useSubfolders } from "./hooks/useSubfolders";
+import { useElementSize } from "./hooks/useElementSize";
 import { moveNodeToFolder } from "../lib/bookmarks/move";
 import { resolveCrossFolderDrop } from "../lib/bookmarks/dragResolve";
 import { forceBookmarkResync } from "../lib/bookmarks/events";
@@ -65,14 +66,20 @@ function AppContent() {
     undefined,
   );
   const activeFolderId = selectedFolderId ?? rootFolders[0]?.id;
+  // .app spans the full window width as an ordinary block-level flex
+  // container, so measuring it doubles as viewport-width tracking for the
+  // sidebar's max-width tiers, reusing the same ResizeObserver pattern
+  // useGridLayout already uses for the canvas instead of a window listener.
+  const { ref: appRef, size: appSize } = useElementSize<HTMLDivElement>();
 
   return (
-    <div className="app">
+    <div className="app" ref={appRef}>
       <Sidebar
         rootFolders={rootFolders}
         loading={loading}
         activeFolderId={activeFolderId}
         onSelectFolder={setSelectedFolderId}
+        viewportWidth={appSize.width}
       />
       {activeFolderId ? (
         <Canvas folderId={activeFolderId} />

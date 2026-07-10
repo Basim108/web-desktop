@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { installChromeMock } from "../../test/chromeMock";
 import {
   DEFAULT_SIDEBAR_WIDTH,
+  MAX_SIDEBAR_WIDTH_CEILING,
   MIN_SIDEBAR_WIDTH,
   getSidebarWidth,
   setSidebarWidth,
@@ -27,11 +28,21 @@ describe("getSidebarWidth", () => {
     await setSidebarWidth(10);
     expect(await getSidebarWidth()).toBe(MIN_SIDEBAR_WIDTH);
   });
+
+  it("clamps a stored width above the ceiling when read", async () => {
+    await setSidebarWidth(5000);
+    expect(await getSidebarWidth()).toBe(MAX_SIDEBAR_WIDTH_CEILING);
+  });
 });
 
 describe("setSidebarWidth", () => {
   it("clamps to the minimum width before storing", async () => {
     await setSidebarWidth(-100);
     expect(await getSidebarWidth()).toBe(MIN_SIDEBAR_WIDTH);
+  });
+
+  it("clamps to the ceiling width before storing", async () => {
+    await setSidebarWidth(5000);
+    expect(await getSidebarWidth()).toBe(MAX_SIDEBAR_WIDTH_CEILING);
   });
 });

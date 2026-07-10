@@ -6,6 +6,8 @@ interface SidebarProps {
   loading: boolean;
   activeFolderId: string | undefined;
   onSelectFolder: (folderId: string) => void;
+  /** Current viewport width, used to pick the sidebar's max-width tier. */
+  viewportWidth: number;
 }
 
 export function Sidebar({
@@ -13,8 +15,9 @@ export function Sidebar({
   loading,
   activeFolderId,
   onSelectFolder,
+  viewportWidth,
 }: SidebarProps) {
-  const { width, isDragging, startDrag } = useSidebarResize();
+  const { width, isDragging, startDrag } = useSidebarResize(viewportWidth);
 
   const resizeHandle = (
     <div

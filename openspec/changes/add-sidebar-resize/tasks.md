@@ -28,3 +28,15 @@
 - [x] 5.3 Manually test: resize the sidebar, reload the new-tab page, and confirm the width persisted. (Automated via `e2e/sidebar-resize.spec.ts`.)
 - [x] 5.4 Confirm canvas scrolling/pagination behavior (edge drag pagination, grid scroll) is unchanged. (Verified: existing `e2e/edge-pagination.spec.ts` and full e2e suite pass unmodified.)
 - [x] 5.5 Run existing test suite and add/update tests for the new hook and any storage helper.
+
+## 6. Viewport-tiered maximum width (amendment)
+
+- [x] 6.1 Add `getMaxWidthForViewport(viewportWidth: number): number` (e.g. in `useSidebarResize.ts` or a small colocated module): returns 212 below 1024px, 512 from 1024px up to (not including) 1920px, 1024 at 1920px and above.
+- [x] 6.2 Wire viewport-width measurement into `useSidebarResize` by reusing the existing `useElementSize` hook on the `.app` container (not a new `window.resize` listener), and recompute the active tier's max whenever it changes. (Measured in `App.tsx` via `useElementSize` on `.app`, passed down to `Sidebar`/`useSidebarResize` as a `viewportWidth` prop.)
+- [x] 6.3 Update the `pointermove` clamp to `Math.min(tierMax, Math.max(40, ...))` so dragging past the current tier's cap stops there.
+- [x] 6.4 Add a live re-clamp effect: when the tier's max changes (viewport resized) and the current *effective* width exceeds the new max, recompute the effective width — without writing to storage — so the sidebar visually shrinks immediately. (Implemented as a derived value — `width = Math.min(maxWidth, Math.max(MIN, preferredWidth))` computed fresh every render — rather than a separate effect, since it needs no effect to stay in sync; re-renders on viewport change recompute it automatically.)
+- [x] 6.5 Ensure growing the window back into a tier whose max is >= the stored preferred width restores that preferred width (effective width is always derived from `Math.min(tierMax, Math.max(40, storedWidth))`, never a value that was permanently overwritten by a prior re-clamp).
+- [x] 6.6 In `sidebarSettings.ts`, add a defensive outer ceiling clamp (1024px, the largest tier's cap) to `setSidebarWidth`, alongside the existing 40px floor clamp. (Applied to `getSidebarWidth` too, for symmetry with the existing floor clamp.)
+- [x] 6.7 Update `e2e/sidebar-resize.spec.ts` (or add a new spec) to cover: dragging stops at the active tier's cap; resizing the browser viewport narrower live-shrinks an over-cap sidebar; resizing back out restores the preferred width.
+- [x] 6.8 Update/add unit tests for `getMaxWidthForViewport` and the hook's tier-aware clamping and re-clamp behavior.
+- [x] 6.9 Run the full unit + e2e suite and confirm no regressions, in particular that canvas scroll/pagination behavior remains unaffected. (168 unit tests + 18 e2e tests pass, including `edge-pagination.spec.ts` unmodified.)
