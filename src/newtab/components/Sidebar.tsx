@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FolderTreeNode } from "./FolderTreeNode";
 import { useSidebarResize } from "../hooks/useSidebarResize";
 
@@ -18,6 +19,9 @@ export function Sidebar({
   viewportWidth,
 }: SidebarProps) {
   const { width, isDragging, startDrag } = useSidebarResize(viewportWidth);
+  const [openSettingsFolderId, setOpenSettingsFolderId] = useState<
+    string | undefined
+  >(undefined);
 
   const resizeHandle = (
     <div
@@ -55,6 +59,8 @@ export function Sidebar({
               activeFolderId={activeFolderId}
               onSelectFolder={onSelectFolder}
               depth={0}
+              openSettingsFolderId={openSettingsFolderId}
+              onOpenSettings={setOpenSettingsFolderId}
             />
           ))}
         </ul>

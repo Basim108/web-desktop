@@ -22,7 +22,7 @@ The system SHALL set the canvas's active folder to whichever folder the user sel
 - **THEN** the canvas becomes filtered to that folder's direct bookmark children
 
 ### Requirement: Folder Sidebar Display Setting
-The system SHALL allow each folder to independently configure its sidebar row display as icon-only, label-only, or both icon and label, with no inheritance from other folders. The icon display option SHALL be unavailable until the folder has a custom uploaded image. Folder names SHALL NOT be empty or consist only of whitespace.
+The system SHALL allow each folder to independently configure its sidebar row display as icon-only, label-only, or both icon and label, with no inheritance from other folders, presented in a popup anchored to that folder's settings toggle button rather than as an inline panel that reflows sibling or descendant rows. The icon display option SHALL be unavailable until the folder has a custom uploaded image. Folder names SHALL NOT be empty or consist only of whitespace. The popup SHALL close when the user clicks outside it or presses the Escape key, and SHALL allow only one folder's settings popup to be open at a time across the sidebar. When the folder has a custom uploaded image, the popup SHALL display a preview of that image sized according to the browser window's viewport width — 32px below 1024px, 48px from 1024px up to (but not including) 1600px, and 64px at 1600px and above.
 
 #### Scenario: Icon display unavailable without a custom image
 - **WHEN** a folder has no custom uploaded image
@@ -35,6 +35,42 @@ The system SHALL allow each folder to independently configure its sidebar row di
 #### Scenario: Empty or whitespace-only folder name rejected
 - **WHEN** the user attempts to save a folder name that is empty or contains only whitespace
 - **THEN** the system rejects the change
+
+#### Scenario: Opening settings shows a popup instead of reflowing the tree
+- **WHEN** the user clicks a folder's settings toggle button
+- **THEN** the display-mode and icon-upload controls appear in a popup anchored to that button, and sibling and descendant folder rows do not shift position
+
+#### Scenario: Clicking outside the popup closes it
+- **WHEN** the folder settings popup is open and the user clicks anywhere outside the popup
+- **THEN** the popup closes
+
+#### Scenario: Pressing Escape closes the popup
+- **WHEN** the folder settings popup is open and the user presses the Escape key
+- **THEN** the popup closes
+
+#### Scenario: Opening another folder's popup closes the previous one
+- **WHEN** a folder's settings popup is open and the user clicks a different folder's settings toggle button
+- **THEN** the first folder's popup closes and the newly selected folder's popup opens
+
+#### Scenario: Icon preview appears with a custom image
+- **WHEN** the settings popup opens for a folder that has a custom uploaded image
+- **THEN** the popup displays a preview of that image
+
+#### Scenario: No icon preview without a custom image
+- **WHEN** the settings popup opens for a folder that has no custom uploaded image
+- **THEN** the popup does not display an icon preview
+
+#### Scenario: Icon preview sized 32px on small screens
+- **WHEN** the settings popup is open with an icon preview and the browser window's viewport width is below 1024px
+- **THEN** the preview renders at 32px
+
+#### Scenario: Icon preview sized 48px on medium-to-large screens
+- **WHEN** the settings popup is open with an icon preview and the browser window's viewport width is at least 1024px and below 1600px
+- **THEN** the preview renders at 48px
+
+#### Scenario: Icon preview sized 64px on ultra-large screens
+- **WHEN** the settings popup is open with an icon preview and the browser window's viewport width is at least 1600px
+- **THEN** the preview renders at 64px
 
 ### Requirement: Folder-to-Folder Drag Nesting
 The system SHALL allow dragging one folder onto another within the sidebar to reparent it via the `chrome.bookmarks` API, and SHALL leave the stored canvas positions of the moved folder's own bookmarks and nested folders unchanged. The system SHALL reject the drop without calling the API if it would create a cycle (dropping a folder onto itself or one of its own descendants) or would move a protected root folder (e.g. Bookmarks Bar, Other Bookmarks). If the API move is attempted and rejected for any other reason, the system SHALL resync the sidebar to match the actual bookmark tree instead of leaving the optimistic UI state stale.
