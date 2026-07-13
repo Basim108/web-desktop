@@ -84,6 +84,36 @@ The system SHALL allow each folder to independently configure its sidebar row di
 - **WHEN** the browser window's viewport width is at least 1600px
 - **THEN** a folder's sidebar row icon renders at 32px, not the 64px used by the settings popup preview at that width
 
+### Requirement: Folder Row Icon and Label Alignment
+When a folder's sidebar row displays both its icon and name, the system SHALL lay them out on a single line, with the name following the icon, vertically centered relative to each other, separated by approximately 3px of spacing.
+
+#### Scenario: Icon and name sit on one line
+- **WHEN** a folder's sidebar row is set to display both icon and name
+- **THEN** the icon and name render side by side on a single line, not stacked
+
+#### Scenario: Icon and name are vertically centered
+- **WHEN** a folder's sidebar row displays both icon and name
+- **THEN** the icon and name are vertically centered relative to each other within the row
+
+#### Scenario: Small gap between icon and name
+- **WHEN** a folder's sidebar row displays both icon and name
+- **THEN** approximately 3px of spacing separates the icon from the name
+
+### Requirement: Folder Row Hover Affordance
+The system SHALL highlight a folder's sidebar row on mouse hover and SHALL show a pointer cursor while hovering it at rest, and SHALL show a grabbing cursor while the folder row is being actively dragged.
+
+#### Scenario: Hovering a folder row highlights it
+- **WHEN** the mouse moves over a folder's sidebar row
+- **THEN** that row is highlighted so the user can see which folder is under the cursor
+
+#### Scenario: Pointer cursor while hovering a folder row
+- **WHEN** the mouse is over a folder's sidebar row and no drag is in progress
+- **THEN** the cursor is a pointer
+
+#### Scenario: Grabbing cursor while a folder is being dragged
+- **WHEN** the user is actively dragging a folder row
+- **THEN** the cursor is a grabbing cursor rather than a pointer
+
 ### Requirement: Folder-to-Folder Drag Nesting
 The system SHALL allow dragging one folder onto another within the sidebar to reparent it via the `chrome.bookmarks` API, and SHALL leave the stored canvas positions of the moved folder's own bookmarks and nested folders unchanged. The system SHALL reject the drop without calling the API if it would create a cycle (dropping a folder onto itself or one of its own descendants) or would move a protected root folder (e.g. Bookmarks Bar, Other Bookmarks). If the API move is attempted and rejected for any other reason, the system SHALL resync the sidebar to match the actual bookmark tree instead of leaving the optimistic UI state stale.
 

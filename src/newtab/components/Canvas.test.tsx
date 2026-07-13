@@ -128,9 +128,40 @@ describe("Canvas", () => {
 
     renderCanvas("f1");
     await resizeCanvas(200, 100);
-    // 200x100 at default settings (min 48) -> capacity 4x2 = 8 cells total.
+    // 200x100 below the 1660px tier breakpoint -> 48px icons ->
+    // floor(200/48)=4 cols, floor(100/48)=2 rows -> 8 cells total.
     await waitFor(() => {
       expect(document.querySelectorAll(".grid-cell")).toHaveLength(8);
+    });
+  });
+
+  it("sizes cells at the 63px tier between 1660px and 2100px", async () => {
+    mock.addNode(folderNode("f1", "0"));
+    mock.addNode(bookmarkNode("b0", "f1", 0));
+
+    renderCanvas("f1");
+    await resizeCanvas(1700, 63);
+
+    await waitFor(() => {
+      const cells = document.querySelectorAll(".grid-cell");
+      // floor(1700/63)=26 cols, floor(63/63)=1 row -> 26 cells.
+      expect(cells).toHaveLength(26);
+      expect((cells[0] as HTMLElement).style.width).toBe("63px");
+    });
+  });
+
+  it("sizes cells at the 100px tier at 2100px and wider", async () => {
+    mock.addNode(folderNode("f1", "0"));
+    mock.addNode(bookmarkNode("b0", "f1", 0));
+
+    renderCanvas("f1");
+    await resizeCanvas(2100, 100);
+
+    await waitFor(() => {
+      const cells = document.querySelectorAll(".grid-cell");
+      // floor(2100/100)=21 cols, floor(100/100)=1 row -> 21 cells.
+      expect(cells).toHaveLength(21);
+      expect((cells[0] as HTMLElement).style.width).toBe("100px");
     });
   });
 

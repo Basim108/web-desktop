@@ -67,19 +67,20 @@ body {
   overflow: auto;
 }
 
-.canvas-grid--scrollable {
-  overflow-y: auto;
-}
-
 .grid-cell {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.grid-cell--occupied:hover,
 .grid-cell--over {
   background: light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 12%));
   border-radius: 8px;
+}
+
+.grid-cell--occupied:hover {
+  cursor: pointer;
 }
 
 .bookmark-icon-wrapper {
@@ -96,7 +97,7 @@ body {
   height: 100%;
   background: none;
   border: none;
-  cursor: grab;
+  cursor: pointer;
   font: inherit;
   color: inherit;
   touch-action: none;
@@ -201,6 +202,14 @@ body {
   white-space: nowrap;
 }
 
+.folder-select {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.folder-select:hover,
 .folder-select--over {
   background: light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 12%));
   border-radius: 4px;
@@ -208,6 +217,7 @@ body {
 
 .folder-select--dragging {
   opacity: 0.5;
+  cursor: grabbing;
 }
 
 .folder-select .custom-icon {

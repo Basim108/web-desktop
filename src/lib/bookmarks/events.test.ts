@@ -14,12 +14,7 @@ import {
   getFolderSettings,
   setFolderHasCustomIcon,
 } from "../storage/folderSettings";
-import {
-  getGridSettingsOverride,
-  setGridSettingsOverride,
-} from "../storage/gridSettings";
 import { getIcon, putIcon } from "../storage/iconDb";
-import { GLOBAL_DEFAULT_GRID_SETTINGS } from "../storage/schema";
 
 const mock = installChromeMock();
 
@@ -156,9 +151,8 @@ describe("onRemoved", () => {
     expect(await getIcon("b1")).toBeUndefined();
   });
 
-  it("discards a removed folder's settings, grid override, and custom icon", async () => {
+  it("discards a removed folder's settings and custom icon", async () => {
     await setFolderHasCustomIcon("f1", true);
-    await setGridSettingsOverride("f1", GLOBAL_DEFAULT_GRID_SETTINGS);
     await putIcon("f1", new Blob(["x"], { type: "image/png" }));
 
     mock.chrome.bookmarks.onRemoved.emit("f1", {
@@ -172,7 +166,6 @@ describe("onRemoved", () => {
       sidebarDisplay: "label-only",
       hasCustomIcon: false,
     });
-    expect(await getGridSettingsOverride("f1")).toBeUndefined();
     expect(await getIcon("f1")).toBeUndefined();
   });
 

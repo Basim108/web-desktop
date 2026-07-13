@@ -8,7 +8,6 @@ import {
 } from "../storage/positions";
 import { removeBookmarkSettings } from "../storage/bookmarkSettings";
 import { removeFolderSettings } from "../storage/folderSettings";
-import { clearGridSettingsOverride } from "../storage/gridSettings";
 import { deleteIcon } from "../storage/iconDb";
 import { isBookmark } from "./read";
 
@@ -21,11 +20,10 @@ async function placeNewBookmark(folderId: string, bookmarkId: string) {
 }
 
 /**
- * Recursively removes stored positions, settings, grid overrides, and any
- * custom-icon blob for a removed node and, if it was a folder, every
- * bookmark/subfolder nested inside it — otherwise this per-item data is
- * orphaned forever in chrome.storage.local/IndexedDB with no way for the
- * user to reclaim it.
+ * Recursively removes stored positions, settings, and any custom-icon blob
+ * for a removed node and, if it was a folder, every bookmark/subfolder
+ * nested inside it — otherwise this per-item data is orphaned forever in
+ * chrome.storage.local/IndexedDB with no way for the user to reclaim it.
  */
 async function cleanUpRemovedSubtree(
   node: chrome.bookmarks.BookmarkTreeNode,
@@ -39,11 +37,7 @@ async function cleanUpRemovedSubtree(
     ]);
     return;
   }
-  await Promise.all([
-    removeFolderSettings(node.id),
-    clearGridSettingsOverride(node.id),
-    deleteIcon(node.id),
-  ]);
+  await Promise.all([removeFolderSettings(node.id), deleteIcon(node.id)]);
   for (const child of node.children ?? []) {
     await cleanUpRemovedSubtree(child, node.id);
   }

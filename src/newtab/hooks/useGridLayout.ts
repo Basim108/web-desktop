@@ -11,24 +11,16 @@ import {
   shouldReflowOnGrowth,
 } from "../../lib/grid/reflow";
 import {
-  computeAutoCapacity,
-  computeAutoIconSize,
-  computeFixedIconSize,
+  computeGridCapacity,
+  resolveTierIconSize,
 } from "../../lib/grid/sizing";
 import type { GridCapacity } from "../../lib/grid/types";
 import type { LayoutCell } from "../../lib/grid/layout";
-import { resolveGridSettings } from "../../lib/storage/gridSettings";
 import { onStorageKeysChanged } from "../../lib/storage/onChanged";
 import { setBookmarkPositions } from "../../lib/storage/positions";
-import {
-  GLOBAL_DEFAULT_GRID_SETTINGS,
-  STORAGE_KEYS,
-} from "../../lib/storage/schema";
-import type { FolderPositions, GridSettings } from "../../lib/storage/schema";
+import { STORAGE_KEYS } from "../../lib/storage/schema";
+import type { FolderPositions } from "../../lib/storage/schema";
 import { useElementSize } from "./useElementSize";
-
-/** Fallback used only if a "fixed" override is ever saved without explicit dimensions. */
-const FALLBACK_FIXED_CAPACITY: GridCapacity = { cols: 6, rows: 4 };
 
 interface UseGridLayoutResult {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -36,7 +28,6 @@ interface UseGridLayoutResult {
   pages: LayoutCell[][];
   bookmarksById: Map<string, chrome.bookmarks.BookmarkTreeNode>;
   iconSize: number;
-  needsScroll: boolean;
   loading: boolean;
   currentPage: number;
   setCurrentPage: (page: number) => void;
@@ -45,7 +36,6 @@ interface UseGridLayoutResult {
 
 interface FolderData {
   folderId: string;
-  settings: GridSettings;
   bookmarks: chrome.bookmarks.BookmarkTreeNode[];
 }
 
@@ -54,34 +44,14 @@ interface PageSelection {
   page: number;
 }
 
+/** Icon size is a fixed tier lookup on available width; capacity is directly derived from it — no separate stretch-to-fill step. */
 function computeCapacityAndIconSize(
-  settings: GridSettings,
   width: number,
   height: number,
-): { capacity: GridCapacity; iconSize: number; needsScroll: boolean } {
-  if (settings.mode === "fixed") {
-    const capacity: GridCapacity = {
-      cols: settings.fixedCols ?? FALLBACK_FIXED_CAPACITY.cols,
-      rows: settings.fixedRows ?? FALLBACK_FIXED_CAPACITY.rows,
-    };
-    const { iconSize, needsScroll } = computeFixedIconSize(
-      width,
-      height,
-      capacity,
-      settings.minIconSize,
-      settings.maxIconSize,
-    );
-    return { capacity, iconSize, needsScroll };
-  }
-
-  const capacity = computeAutoCapacity(width, height, settings.minIconSize);
-  const iconSize = computeAutoIconSize(
-    width,
-    height,
-    capacity,
-    settings.maxIconSize,
-  );
-  return { capacity, iconSize, needsScroll: false };
+): { capacity: GridCapacity; iconSize: number } {
+  const iconSize = resolveTierIconSize(width);
+  const capacity = computeGridCapacity(width, height, iconSize);
+  return { capacity, iconSize };
 }
 
 export function useGridLayout(folderId: string): UseGridLayoutResult {
@@ -94,24 +64,18 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
   });
   const previousCapacityRef = useRef<GridCapacity | null>(null);
 
-  const settingsLoaded = folderData?.folderId === folderId;
-  const settings = settingsLoaded
-    ? folderData.settings
-    : GLOBAL_DEFAULT_GRID_SETTINGS;
+  const dataLoaded = folderData?.folderId === folderId;
 
-  // Load folder identity data (settings + direct bookmark children) fresh
-  // whenever the selected folder changes. `settingsLoaded`/`currentPage`
-  // above are derived by comparing folderId rather than reset here, so
-  // the only setState call is the one inside `.then()`.
+  // Load this folder's direct bookmark children fresh whenever the selected
+  // folder changes. `dataLoaded`/`currentPage` above are derived by
+  // comparing folderId rather than reset here, so the only setState call is
+  // the one inside `.then()`.
   useEffect(() => {
     let cancelled = false;
     previousCapacityRef.current = null;
-    void Promise.all([
-      resolveGridSettings(folderId),
-      getBookmarksInFolder(folderId),
-    ]).then(([resolvedSettings, bookmarks]) => {
+    void getBookmarksInFolder(folderId).then((bookmarks) => {
       if (!cancelled) {
-        setFolderData({ folderId, settings: resolvedSettings, bookmarks });
+        setFolderData({ folderId, bookmarks });
       }
     });
     return () => {
@@ -141,9 +105,9 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
     [folderId],
   );
 
-  const { capacity, iconSize, needsScroll } = useMemo(
-    () => computeCapacityAndIconSize(settings, size.width, size.height),
-    [settings, size.width, size.height],
+  const { capacity, iconSize } = useMemo(
+    () => computeCapacityAndIconSize(size.width, size.height),
+    [size.width, size.height],
   );
 
   // Once real dimensions are measured, seed any missing positions using
@@ -154,7 +118,7 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
   // stays pinned to the last-mutated baseline across a shrink, meaning a
   // later growth is still compared against pre-shrink capacity.
   useEffect(() => {
-    if (!settingsLoaded || size.width === 0 || size.height === 0) {
+    if (!dataLoaded || size.width === 0 || size.height === 0) {
       return;
     }
     let cancelled = false;
@@ -177,46 +141,24 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
     return () => {
       cancelled = true;
     };
-  }, [folderId, settingsLoaded, capacity, size.width, size.height]);
+  }, [folderId, dataLoaded, capacity, size.width, size.height]);
 
-  // Cross-tab live sync: another open new-tab page's position/gridSettings
-  // writes arrive here via chrome.storage.onChanged. Position changes are
-  // applied directly (the writing tab already resolved backfill/reflow
-  // before persisting); gridSettings/globalGridSettings changes re-resolve
-  // this folder's effective settings, which cascades into the sizing
-  // effect above.
+  // Cross-tab live sync: another open new-tab page's position writes arrive
+  // here via chrome.storage.onChanged. The writing tab already resolved
+  // backfill/reflow before persisting, so this is a direct apply.
   useEffect(
     () =>
-      onStorageKeysChanged(
-        [
-          STORAGE_KEYS.POSITIONS,
-          STORAGE_KEYS.GRID_SETTINGS,
-          STORAGE_KEYS.GLOBAL_GRID_SETTINGS,
-        ],
-        (changes) => {
-          const positionsChange = changes[STORAGE_KEYS.POSITIONS];
-          if (positionsChange) {
-            const newValue = positionsChange.newValue as
-              Record<string, FolderPositions> | undefined;
-            const folderPositions = newValue?.[folderId];
-            if (folderPositions) {
-              setPositions(folderPositions);
-            }
+      onStorageKeysChanged([STORAGE_KEYS.POSITIONS], (changes) => {
+        const positionsChange = changes[STORAGE_KEYS.POSITIONS];
+        if (positionsChange) {
+          const newValue = positionsChange.newValue as
+            Record<string, FolderPositions> | undefined;
+          const folderPositions = newValue?.[folderId];
+          if (folderPositions) {
+            setPositions(folderPositions);
           }
-          if (
-            STORAGE_KEYS.GRID_SETTINGS in changes ||
-            STORAGE_KEYS.GLOBAL_GRID_SETTINGS in changes
-          ) {
-            void resolveGridSettings(folderId).then((resolvedSettings) => {
-              setFolderData((current) =>
-                current && current.folderId === folderId
-                  ? { ...current, settings: resolvedSettings }
-                  : current,
-              );
-            });
-          }
-        },
-      ),
+        }
+      }),
     [folderId],
   );
 
@@ -265,7 +207,7 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
       ? Math.min(pageSelection.page, Math.max(pages.length - 1, 0))
       : 0;
   const bookmarksById = new Map(
-    (settingsLoaded ? folderData.bookmarks : []).map((bookmark) => [
+    (dataLoaded ? folderData.bookmarks : []).map((bookmark) => [
       bookmark.id,
       bookmark,
     ]),
@@ -291,8 +233,7 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
     pages,
     bookmarksById,
     iconSize,
-    needsScroll,
-    loading: !settingsLoaded,
+    loading: !dataLoaded,
     currentPage,
     setCurrentPage: (page: number) => setPageSelection({ folderId, page }),
     moveBookmarks,

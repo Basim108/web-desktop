@@ -27,7 +27,6 @@ export function Canvas({ folderId }: CanvasProps) {
     pages,
     bookmarksById,
     iconSize,
-    needsScroll,
     loading,
     currentPage,
     setCurrentPage,
@@ -89,7 +88,7 @@ export function Canvas({ folderId }: CanvasProps) {
       ) : (
         <>
           <div
-            className={`canvas-grid${needsScroll ? " canvas-grid--scrollable" : ""}`}
+            className="canvas-grid"
             style={{
               gridTemplateColumns: `repeat(${capacity.cols}, ${iconSize}px)`,
               gridTemplateRows: `repeat(${capacity.rows}, ${iconSize}px)`,
@@ -106,6 +105,7 @@ export function Canvas({ folderId }: CanvasProps) {
                     key={cellKey(row, col)}
                     cellKey={cellKey(row, col)}
                     size={iconSize}
+                    occupied={Boolean(bookmark)}
                   >
                     {bookmark && (
                       <BookmarkIcon

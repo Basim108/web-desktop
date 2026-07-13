@@ -26,11 +26,7 @@ describe("onStorageKeysChanged", () => {
     const callback = vi.fn();
     onStorageKeysChanged([STORAGE_KEYS.FOLDER_SETTINGS], callback);
 
-    await setStorageValue(STORAGE_KEYS.GLOBAL_GRID_SETTINGS, {
-      mode: "auto",
-      maxIconSize: 96,
-      minIconSize: 48,
-    });
+    await setStorageValue(STORAGE_KEYS.SIDEBAR_WIDTH, 212);
 
     expect(callback).not.toHaveBeenCalled();
   });
