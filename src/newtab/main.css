@@ -207,21 +207,51 @@ body {
   white-space: nowrap;
 }
 
+.folder-tree,
+.folder-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.folder-expand-toggle,
+.folder-expand-spacer {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.folder-expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .folder-select {
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
   gap: 3px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
   cursor: pointer;
 }
 
 .folder-label {
   font-size: var(--label-font-size);
-}
-
-.folder-select:hover,
-.folder-select--over {
-  background: light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 12%));
-  border-radius: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .folder-select--dragging {
@@ -243,6 +273,23 @@ body {
 
 .folder-row {
   position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 3px 3px 0;
+}
+
+@media (min-width: 1024px) {
+  .folder-row {
+    min-height: 32px;
+  }
+}
+
+.folder-row:hover,
+.folder-row--over,
+.folder-row--active {
+  background: light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 12%));
+  border-radius: 4px;
 }
 
 /* Keeps every row's own buttons clickable even when a sibling row's open
@@ -250,6 +297,15 @@ body {
 .folder-row > button {
   position: relative;
   z-index: 11;
+}
+
+.folder-settings-toggle {
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .folder-settings-panel {

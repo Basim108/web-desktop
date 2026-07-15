@@ -118,12 +118,31 @@ When a folder's sidebar row displays both its icon and name, the system SHALL la
 - **WHEN** a folder's sidebar row displays both icon and name
 - **THEN** approximately 3px of spacing separates the icon from the name
 
-### Requirement: Folder Row Hover Affordance
-The system SHALL highlight a folder's sidebar row on mouse hover and SHALL show a pointer cursor while hovering it at rest, and SHALL show a grabbing cursor while the folder row is being actively dragged.
+### Requirement: Folder Row Single-Line Layout Without List Markers
+The system SHALL render each folder row's expand-toggle, icon+name area, and settings button on a single horizontal line, vertically centered relative to each other, and SHALL NOT display any native list bullet marker before a row.
 
-#### Scenario: Hovering a folder row highlights it
-- **WHEN** the mouse moves over a folder's sidebar row
-- **THEN** that row is highlighted so the user can see which folder is under the cursor
+#### Scenario: Expand-toggle, icon+name, and settings button share one line
+- **WHEN** a folder row renders, whether or not the folder has children
+- **THEN** the expand-toggle (or its spacer), the icon+name area, and the settings button all appear on the same horizontal line
+
+#### Scenario: Row elements are vertically centered
+- **WHEN** a folder row renders
+- **THEN** the expand-toggle, icon+name area, and settings button are vertically centered relative to each other within the row
+
+#### Scenario: No bullet marker before a row
+- **WHEN** the folder tree or any expanded subfolder list renders
+- **THEN** no list bullet or other native list marker appears before any row
+
+#### Scenario: Rows with and without children align identically
+- **WHEN** comparing a folder row that has subfolders (showing an expand-toggle) to one that does not (showing a spacer)
+- **THEN** the icon+name area starts at the same horizontal position in both rows
+
+### Requirement: Folder Row Hover Affordance
+The system SHALL render each folder row with a single transparent-at-rest background covering its entire row — expand-toggle, icon, name, and settings button together — SHALL highlight that full row (same background) on mouse hover and while a drag is over it, SHALL show a pointer cursor while hovering it at rest, and SHALL show a grabbing cursor while the folder row is being actively dragged. The system SHALL also apply that same highlight persistently to whichever folder is currently active/selected, independent of hover or drag state.
+
+#### Scenario: Hovering a folder row highlights the entire row
+- **WHEN** the mouse moves over any part of a folder's sidebar row, including its expand-toggle or settings button
+- **THEN** the entire row is highlighted so the user can see which folder is under the cursor
 
 #### Scenario: Pointer cursor while hovering a folder row
 - **WHEN** the mouse is over a folder's sidebar row and no drag is in progress
@@ -132,6 +151,40 @@ The system SHALL highlight a folder's sidebar row on mouse hover and SHALL show 
 #### Scenario: Grabbing cursor while a folder is being dragged
 - **WHEN** the user is actively dragging a folder row
 - **THEN** the cursor is a grabbing cursor rather than a pointer
+
+#### Scenario: Dragging another item over a folder row highlights it the same as hover
+- **WHEN** a bookmark or folder is being dragged over a folder row as a potential drop target
+- **THEN** that row shows the same highlight as mouse hover
+
+#### Scenario: The active folder shows a persistent highlight
+- **WHEN** a folder is the currently active/selected folder shown on the canvas
+- **THEN** that folder's row shows the same highlight as hover, persistently, regardless of mouse position
+
+#### Scenario: Rows are transparent at rest
+- **WHEN** a folder row is neither hovered, drag-targeted, nor the active folder
+- **THEN** its background is transparent
+
+### Requirement: Folder Row Consistent Height
+The system SHALL render every folder row at the same height regardless of whether that folder's display setting currently shows an icon, sized as tall as a row displaying an icon would be at the current viewport width.
+
+#### Scenario: Label-only row matches an icon row's height
+- **WHEN** one folder row displays icon and name and a sibling row displays name only
+- **THEN** both rows render at the same height
+
+#### Scenario: Row height tracks the icon size breakpoint
+- **WHEN** the browser window's viewport width crosses the 1024px breakpoint
+- **THEN** every folder row's height changes to match the icon size at the new tier, whether or not that row currently displays an icon
+
+### Requirement: Folder Row Edge Spacing
+The system SHALL render each folder row with approximately 3px of spacing on its top, bottom, and right edges, so its settings button does not touch the sidebar's border and adjacent rows do not touch each other. Left-edge spacing SHALL continue to be governed solely by the row's existing per-depth indentation.
+
+#### Scenario: Settings button does not touch the sidebar border
+- **WHEN** a folder row renders
+- **THEN** its settings button is visually separated from the sidebar's right border by approximately 3px
+
+#### Scenario: Adjacent rows do not touch
+- **WHEN** two folder rows are stacked directly above one another
+- **THEN** approximately 3px of vertical spacing separates them
 
 ### Requirement: Folder-to-Folder Drag Nesting
 The system SHALL allow dragging one folder onto another within the sidebar to reparent it via the `chrome.bookmarks` API, and SHALL leave the stored canvas positions of the moved folder's own bookmarks and nested folders unchanged. The system SHALL reject the drop without calling the API if it would create a cycle (dropping a folder onto itself or one of its own descendants) or would move a protected root folder (e.g. Bookmarks Bar, Other Bookmarks). If the API move is attempted and rejected for any other reason, the system SHALL resync the sidebar to match the actual bookmark tree instead of leaving the optimistic UI state stale.

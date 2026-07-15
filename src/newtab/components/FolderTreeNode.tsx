@@ -109,7 +109,7 @@ export function FolderTreeNode({
   return (
     <li>
       <div
-        className={`folder-row${isActive ? " folder-row--active" : ""}`}
+        className={`folder-row${isActive ? " folder-row--active" : ""}${isOver ? " folder-row--over" : ""}`}
         style={{ paddingLeft: depth * 16 }}
       >
         {hasChildren ? (
@@ -128,7 +128,7 @@ export function FolderTreeNode({
         <button
           ref={setFolderRowRef}
           type="button"
-          className={`folder-select${isOver ? " folder-select--over" : ""}${isDragging ? " folder-select--dragging" : ""}`}
+          className={`folder-select${isDragging ? " folder-select--dragging" : ""}`}
           onClick={() => onSelectFolder(folder.id)}
           title={display === "icon-only" ? folder.title : undefined}
           style={{ transform: CSS.Translate.toString(transform) }}
