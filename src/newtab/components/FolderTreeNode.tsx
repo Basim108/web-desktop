@@ -1,34 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useSubfolders } from "../hooks/useSubfolders";
 import { useFolderSettings } from "../hooks/useFolderSettings";
-import {
-  resolveFolderDisplay,
-  setFolderHasCustomIcon,
-  setFolderSidebarDisplay,
-} from "../../lib/storage/folderSettings";
-import type { FolderSidebarDisplay } from "../../lib/storage/schema";
+import { resolveFolderDisplay } from "../../lib/storage/folderSettings";
 import { CustomIconImage } from "./CustomIconImage";
-import { FolderIconPreview } from "./FolderIconPreview";
-import { IconUploadControls } from "./IconUploadControls";
+import { FolderSettingsWindow } from "./FolderSettingsWindow";
 
 interface FolderTreeNodeProps {
   folder: chrome.bookmarks.BookmarkTreeNode;
   activeFolderId: string | undefined;
   onSelectFolder: (folderId: string) => void;
   depth: number;
-  /** Id of the folder whose settings popup is currently open across the whole sidebar, or undefined if none is. */
+  /** Id of the folder whose settings window is currently open across the whole sidebar, or undefined if none is. */
   openSettingsFolderId: string | undefined;
-  /** Opens this folder's settings popup (pass its id) or closes whichever one is open (pass undefined). Lifted to Sidebar so only one popup is ever open at a time. */
+  /** Opens this folder's settings window (pass its id) or closes whichever one is open (pass undefined). Lifted to Sidebar so only one window is ever open at a time. */
   onOpenSettings: (folderId: string | undefined) => void;
 }
-
-const DISPLAY_OPTIONS: { value: FolderSidebarDisplay; label: string }[] = [
-  { value: "label-only", label: "Name only" },
-  { value: "icon-only", label: "Icon only" },
-  { value: "icon-and-label", label: "Icon + name" },
-];
 
 export function FolderTreeNode({
   folder,
@@ -40,31 +28,8 @@ export function FolderTreeNode({
 }: FolderTreeNodeProps) {
   const [expanded, setExpanded] = useState(false);
   const settingsOpen = openSettingsFolderId === folder.id;
-  const settingsPanelRef = useRef<HTMLDivElement | null>(null);
-  const settingsToggleRef = useRef<HTMLButtonElement | null>(null);
   const { folders: subfolders } = useSubfolders(folder.id);
   const { settings, reload, version } = useFolderSettings(folder.id);
-
-  useEffect(() => {
-    if (!settingsOpen) return;
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node;
-      if (settingsPanelRef.current?.contains(target)) return;
-      if (settingsToggleRef.current?.contains(target)) return;
-      onOpenSettings(undefined);
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onOpenSettings(undefined);
-      }
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [settingsOpen, onOpenSettings]);
 
   // A folder row is both a drag source (moving it to another folder) and a
   // drop target (accepting a dragged bookmark or another dragged folder) —
@@ -95,16 +60,6 @@ export function FolderTreeNode({
   const display = resolveFolderDisplay(settings);
   const isActive = activeFolderId === folder.id;
   const hasChildren = subfolders.length > 0;
-
-  async function handleDisplayChange(next: FolderSidebarDisplay) {
-    await setFolderSidebarDisplay(folder.id, next);
-    reload();
-  }
-
-  async function handleIconChange(hasCustomIcon: boolean) {
-    await setFolderHasCustomIcon(folder.id, hasCustomIcon);
-    reload();
-  }
 
   return (
     <li>
@@ -148,7 +103,6 @@ export function FolderTreeNode({
         </button>
 
         <button
-          ref={settingsToggleRef}
           type="button"
           className="folder-settings-toggle"
           aria-label="Folder display settings"
@@ -158,39 +112,13 @@ export function FolderTreeNode({
         </button>
 
         {settingsOpen && (
-          <div
-            ref={settingsPanelRef}
-            className="folder-settings-panel"
-            role="group"
-          >
-            {settings.hasCustomIcon && (
-              <FolderIconPreview
-                folderId={folder.id}
-                alt={folder.title}
-                version={version}
-              />
-            )}
-            {DISPLAY_OPTIONS.map((option) => (
-              <label key={option.value} className="folder-settings-option">
-                <input
-                  type="radio"
-                  name={`folder-display-${folder.id}`}
-                  value={option.value}
-                  checked={settings.sidebarDisplay === option.value}
-                  disabled={
-                    !settings.hasCustomIcon && option.value !== "label-only"
-                  }
-                  onChange={() => void handleDisplayChange(option.value)}
-                />
-                {option.label}
-              </label>
-            ))}
-            <IconUploadControls
-              itemId={folder.id}
-              hasCustomIcon={settings.hasCustomIcon}
-              onChange={(hasCustomIcon) => void handleIconChange(hasCustomIcon)}
-            />
-          </div>
+          <FolderSettingsWindow
+            folder={folder}
+            settings={settings}
+            iconVersion={version}
+            onSaved={reload}
+            onClose={() => onOpenSettings(undefined)}
+          />
         )}
       </div>
 

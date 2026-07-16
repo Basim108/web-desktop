@@ -22,55 +22,55 @@ The system SHALL set the canvas's active folder to whichever folder the user sel
 - **THEN** the canvas becomes filtered to that folder's direct bookmark children
 
 ### Requirement: Folder Sidebar Display Setting
-The system SHALL allow each folder to independently configure its sidebar row display as icon-only, label-only, or both icon and label, with no inheritance from other folders, presented in a popup anchored to that folder's settings toggle button rather than as an inline panel that reflows sibling or descendant rows. The icon display option SHALL be unavailable until the folder has a custom uploaded image. Folder names SHALL NOT be empty or consist only of whitespace. The popup SHALL close when the user clicks outside it or presses the Escape key, and SHALL allow only one folder's settings popup to be open at a time across the sidebar. When the folder has a custom uploaded image, the popup SHALL display a preview of that image sized according to the browser window's viewport width — 32px below 1024px, 48px from 1024px up to (but not including) 1600px, and 64px at 1600px and above. When a folder's sidebar row displays its custom icon (icon-only or icon+label mode), the row's icon SHALL be sized according to the browser window's viewport width — 24px below 1024px and 32px at 1024px and above — independent of and unaffected by the popup preview's sizing.
+The system SHALL allow each folder to independently configure its sidebar row display as icon-only, label-only, or both icon and label, rename the folder, upload or remove a custom folder image, and remove the folder, with no inheritance from other folders, presented in a centered modal window matching the Edit Bookmark window's style (titlebar with title and close control, opaque body, and a footer) rather than as a popup anchored to the folder's settings toggle button. The modal window SHALL be opened from the folder's settings (gear) toggle button, whose glyph SHALL render at a 16px font size, and SHALL float over the center of the viewport without shifting sibling or descendant folder rows. The icon display options SHALL be unavailable until the folder has a custom uploaded image, evaluated against the window's staged (not-yet-saved) image state. Folder names SHALL NOT be empty or consist only of whitespace. All edits (name, display mode, custom image) SHALL be staged in the window and applied together only when the user saves; closing the window, pressing the Escape key, or clicking the backdrop SHALL discard any unsaved edits. Only one folder's settings window SHALL be open at a time. When the window has a staged custom image (either the folder's existing image or a newly uploaded one), it SHALL display a fixed-size preview of that image matching the Edit Bookmark window's preview sizing; when no image is staged it SHALL display no image preview. Removing the folder SHALL delete the folder and its entire subtree. When a folder's sidebar row displays its custom icon (icon-only or icon+label mode), the row's icon SHALL be sized according to the browser window's viewport width — 24px below 1024px and 32px at 1024px and above — independent of and unaffected by the settings window's fixed preview sizing.
 
-#### Scenario: Icon display unavailable without a custom image
-- **WHEN** a folder has no custom uploaded image
-- **THEN** the icon-only and icon+label display options are disabled for that folder
+#### Scenario: Settings open as a centered modal window, not an anchored popup
+- **WHEN** the user clicks a folder's settings (gear) toggle button
+- **THEN** a centered modal window styled like the Edit Bookmark window opens, and sibling and descendant folder rows do not shift position
 
-#### Scenario: Icon display available with a custom image
-- **WHEN** a folder has a custom uploaded image
-- **THEN** the user can set that folder's sidebar display to icon-only, label-only, or both
+#### Scenario: Gear toggle button renders at 16px
+- **WHEN** a folder row's settings (gear) toggle button renders
+- **THEN** its glyph is displayed at a 16px font size
+
+#### Scenario: Icon display unavailable without a staged custom image
+- **WHEN** the folder settings window has no staged custom image
+- **THEN** the icon-only and icon+label display options are disabled
+
+#### Scenario: Icon display available with a staged custom image
+- **WHEN** the folder settings window has a staged custom image (existing or newly uploaded)
+- **THEN** the user can select icon-only, label-only, or icon+label display
 
 #### Scenario: Empty or whitespace-only folder name rejected
 - **WHEN** the user attempts to save a folder name that is empty or contains only whitespace
-- **THEN** the system rejects the change
+- **THEN** the system rejects the change and does not save
 
-#### Scenario: Opening settings shows a popup instead of reflowing the tree
-- **WHEN** the user clicks a folder's settings toggle button
-- **THEN** the display-mode and icon-upload controls appear in a popup anchored to that button, and sibling and descendant folder rows do not shift position
+#### Scenario: Edits are staged and applied only on save
+- **WHEN** the user changes the name, display mode, or custom image in the window and clicks Save
+- **THEN** all changed values are applied together, and not before Save is clicked
 
-#### Scenario: Clicking outside the popup closes it
-- **WHEN** the folder settings popup is open and the user clicks anywhere outside the popup
-- **THEN** the popup closes
+#### Scenario: Closing the window discards unsaved edits
+- **WHEN** the folder settings window has unsaved edits and the user closes it, presses Escape, or clicks the backdrop
+- **THEN** the window closes and none of the staged edits are applied
 
-#### Scenario: Pressing Escape closes the popup
-- **WHEN** the folder settings popup is open and the user presses the Escape key
-- **THEN** the popup closes
+#### Scenario: Staging an image removal falls back to label-only on save
+- **WHEN** an icon-requiring display mode is selected and the user stages removal of the folder's custom image, then saves
+- **THEN** the folder's display mode is saved as label-only without error
 
-#### Scenario: Opening another folder's popup closes the previous one
-- **WHEN** a folder's settings popup is open and the user clicks a different folder's settings toggle button
-- **THEN** the first folder's popup closes and the newly selected folder's popup opens
+#### Scenario: Renaming the folder updates its title
+- **WHEN** the user edits the name to a non-empty value and saves
+- **THEN** the folder's title is updated via the bookmarks API
 
-#### Scenario: Icon preview appears with a custom image
-- **WHEN** the settings popup opens for a folder that has a custom uploaded image
-- **THEN** the popup displays a preview of that image
+#### Scenario: Removing the folder deletes it and its subtree
+- **WHEN** the user confirms removal of the folder in the window
+- **THEN** the folder and all of its nested bookmarks and subfolders are deleted, and their stored positions, settings, and custom-icon data are discarded
 
-#### Scenario: No icon preview without a custom image
-- **WHEN** the settings popup opens for a folder that has no custom uploaded image
-- **THEN** the popup does not display an icon preview
+#### Scenario: Only one folder settings window is open at a time
+- **WHEN** a folder's settings window is open and the user opens a different folder's settings
+- **THEN** the first window closes and the newly selected folder's window opens
 
-#### Scenario: Icon preview sized 32px on small screens
-- **WHEN** the settings popup is open with an icon preview and the browser window's viewport width is below 1024px
-- **THEN** the preview renders at 32px
-
-#### Scenario: Icon preview sized 48px on medium-to-large screens
-- **WHEN** the settings popup is open with an icon preview and the browser window's viewport width is at least 1024px and below 1600px
-- **THEN** the preview renders at 48px
-
-#### Scenario: Icon preview sized 64px on ultra-large screens
-- **WHEN** the settings popup is open with an icon preview and the browser window's viewport width is at least 1600px
-- **THEN** the preview renders at 64px
+#### Scenario: Image preview appears only when an image is staged
+- **WHEN** the folder settings window is open
+- **THEN** it displays a fixed-size preview of the staged custom image when one is staged, and no image preview when none is staged
 
 #### Scenario: Sidebar row icon sized 24px on small screens
 - **WHEN** a folder's sidebar row displays its custom icon and the browser window's viewport width is below 1024px
@@ -80,9 +80,9 @@ The system SHALL allow each folder to independently configure its sidebar row di
 - **WHEN** a folder's sidebar row displays its custom icon and the browser window's viewport width is at least 1024px
 - **THEN** the row's icon renders at 32px
 
-#### Scenario: Sidebar row icon size is independent of the popup preview
-- **WHEN** the browser window's viewport width is at least 1600px
-- **THEN** a folder's sidebar row icon renders at 32px, not the 64px used by the settings popup preview at that width
+#### Scenario: Sidebar row icon size is independent of the settings window preview
+- **WHEN** a folder's sidebar row displays its custom icon
+- **THEN** the row's icon renders at its viewport-tiered size (24px or 32px), not the fixed 64px used by the settings window's preview
 
 ### Requirement: Folder Label Font Size Follows Grid Tier
 The system SHALL render folder row names at a font-size that matches the canvas grid's current tier — 0.75rem when the grid is at its 80px tier, 0.85rem at its 106px tier, and 1rem at its 166px tier — independent of the sidebar's own separate width-tiering system.
