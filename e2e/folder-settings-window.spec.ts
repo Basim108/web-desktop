@@ -30,7 +30,7 @@ async function openFolderSettings(
 ) {
   await page
     .locator(".folder-row", { hasText: folderTitle })
-    .getByRole("button", { name: "Folder display settings" })
+    .getByRole("button", { name: "Folder settings" })
     .click();
   return page.getByRole("dialog", { name: "Folder Settings" });
 }
@@ -126,7 +126,7 @@ test("pressing Escape closes the window without saving", async ({
   expect(stored).not.toContain("Discarded Name");
 });
 
-test("uploading an image enables an icon display mode and persists on Save", async ({
+test("uploading a custom image persists it and shows it on the folder row", async ({
   context,
   extensionId,
 }) => {
@@ -137,25 +137,19 @@ test("uploading an image enables an icon display mode and persists on Save", asy
   await expandBookmarksBar(page);
 
   const dialog = await openFolderSettings(page, "Alpha");
-  // Icon modes are disabled until an image is staged.
-  await expect(
-    dialog.getByRole("radio", { name: "Icon + name" }),
-  ).toBeDisabled();
+  // No display-mode options — the row always shows icon + name.
+  await expect(dialog.getByRole("radio")).toHaveCount(0);
 
   await dialog.getByLabel("Upload image").setInputFiles(TINY_PNG_PATH);
   const preview = dialog.locator(
     ".folder-settings-window-icon-preview .custom-icon",
   );
   await expect(preview).toBeVisible();
-  await expect(
-    dialog.getByRole("radio", { name: "Icon + name" }),
-  ).toBeEnabled();
 
-  await dialog.getByRole("radio", { name: "Icon + name" }).check();
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
 
-  // The folder row now shows its custom icon alongside the name.
+  // The folder row shows its custom icon alongside the name.
   const alphaRow = page.locator(".folder-row", { hasText: "Alpha" });
   await expect(alphaRow.locator(".custom-icon")).toBeVisible();
 });

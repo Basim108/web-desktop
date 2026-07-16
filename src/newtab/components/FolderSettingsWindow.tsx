@@ -4,15 +4,10 @@ import { createPortal } from "react-dom";
 import { removeFolder, updateFolderTitle } from "../../lib/bookmarks/edit";
 import { ICON_ERROR_MESSAGES } from "../../lib/icons/errorMessages";
 import { validateIconFile } from "../../lib/icons/validation";
-import {
-  setFolderHasCustomIcon,
-  setFolderSidebarDisplay,
-} from "../../lib/storage/folderSettings";
+import { setFolderHasCustomIcon } from "../../lib/storage/folderSettings";
+import { DEFAULT_FOLDER_ICON_KEY } from "../../lib/storage/defaultFolderIcon";
 import { deleteIcon, putIcon } from "../../lib/storage/iconDb";
-import type {
-  FolderSettings,
-  FolderSidebarDisplay,
-} from "../../lib/storage/schema";
+import type { FolderSettings } from "../../lib/storage/schema";
 import { CustomIconImage } from "./CustomIconImage";
 
 interface FolderSettingsWindowProps {
@@ -36,19 +31,15 @@ type PendingIcon =
   | { kind: "upload"; file: File; previewUrl: string }
   | { kind: "removed" };
 
-const DISPLAY_OPTIONS: { value: FolderSidebarDisplay; label: string }[] = [
-  { value: "label-only", label: "Name only" },
-  { value: "icon-only", label: "Icon only" },
-  { value: "icon-and-label", label: "Icon + name" },
-];
-
 /**
  * Centered, opaque "Folder Settings" window (portaled to document.body) for a
- * single folder: icon, name, sidebar display mode, and removal. Styled to
- * match the Edit Bookmark window. All edits are staged and applied atomically
- * on Save; the close control, backdrop, and Escape discard them. Removal
- * deletes the real Chrome folder (and its subtree) after a confirmation step
- * and relies on the events.ts onRemoved cascade for cleanup.
+ * single folder: icon, name, and removal. Styled to match the Edit Bookmark
+ * window. Every folder row always shows its icon and name, so there is no
+ * display-mode choice here — only whether the folder has a custom icon (else
+ * the shared default folder icon is shown). All edits are staged and applied
+ * atomically on Save; the close control, backdrop, and Escape discard them.
+ * Removal deletes the real Chrome folder (and its subtree) after a
+ * confirmation step and relies on the events.ts onRemoved cascade for cleanup.
  */
 export function FolderSettingsWindow({
   folder,
@@ -59,12 +50,8 @@ export function FolderSettingsWindow({
 }: FolderSettingsWindowProps) {
   const titleId = useId();
   const nameId = useId();
-  const displayGroupName = useId();
 
   const [name, setName] = useState(folder.title);
-  const [sidebarDisplay, setSidebarDisplay] = useState<FolderSidebarDisplay>(
-    settings.sidebarDisplay,
-  );
   const [pendingIcon, setPendingIcon] = useState<PendingIcon>({
     kind: "unchanged",
   });
@@ -76,8 +63,8 @@ export function FolderSettingsWindow({
   const canSave = nameValid && !saving;
   // "Has a custom icon" for the staged state: a pending upload counts, a
   // pending removal does not, and otherwise it's whatever the folder already
-  // has. The display radios and the saved display mode key off this, not the
-  // persisted flag, so the icon options enable/disable before Save.
+  // has. Drives the "Remove image" button and the preview (custom icon vs. the
+  // shared default), reflecting the staged state before Save.
   const hasCustomIconNow =
     pendingIcon.kind === "upload" ||
     (pendingIcon.kind === "unchanged" && settings.hasCustomIcon);
@@ -140,14 +127,6 @@ export function FolderSettingsWindow({
       return;
     }
 
-    // Clamp to label-only when there's no staged icon, so setFolderSidebarDisplay
-    // (which rejects icon modes without an icon) never throws — mirrors
-    // resolveFolderDisplay's semantics.
-    await setFolderSidebarDisplay(
-      folder.id,
-      hasCustomIconNow ? sidebarDisplay : "label-only",
-    );
-
     onSaved();
     onClose();
   }
@@ -180,7 +159,15 @@ export function FolderSettingsWindow({
         />
       );
     }
-    return <span className="favicon-fallback" aria-hidden="true" />;
+    // No custom icon staged: preview the shared default folder icon, matching
+    // what the sidebar row will actually render.
+    return (
+      <CustomIconImage
+        itemId={DEFAULT_FOLDER_ICON_KEY}
+        alt={folder.title}
+        version={iconVersion}
+      />
+    );
   }
 
   return createPortal(
@@ -262,30 +249,6 @@ export function FolderSettingsWindow({
               onChange={(event) => setName(event.target.value)}
               aria-invalid={name.length > 0 && !nameValid}
             />
-          </div>
-
-          <div className="folder-settings-window-field folder-settings-window-field--top">
-            <span className="folder-settings-window-field-label">Display</span>
-            <div className="folder-settings-window-radio-group">
-              {DISPLAY_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className="folder-settings-window-radio"
-                >
-                  <input
-                    type="radio"
-                    name={displayGroupName}
-                    value={option.value}
-                    checked={sidebarDisplay === option.value}
-                    disabled={
-                      !hasCustomIconNow && option.value !== "label-only"
-                    }
-                    onChange={() => setSidebarDisplay(option.value)}
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </div>
           </div>
 
           {name.length > 0 && !nameValid && (
