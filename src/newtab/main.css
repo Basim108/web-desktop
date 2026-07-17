@@ -317,7 +317,8 @@ body {
   z-index: 11;
 }
 
-.folder-settings-toggle {
+.folder-settings-toggle,
+.folder-add-subfolder {
   padding: 0;
   background: none;
   border: none;
@@ -326,15 +327,25 @@ body {
   color: inherit;
   cursor: pointer;
   /* Hidden at rest; revealed on row hover, keyboard focus, or while this
-     folder's settings window is open. Kept in the DOM and clickable
-     (opacity, not display) so the row layout never shifts. */
+     folder's own window is open. Kept in the DOM and clickable (opacity, not
+     display) so the row layout never shifts. */
   opacity: 0;
   transition: opacity 0.12s ease;
 }
 
+/* The add-subfolder button sits just left of the gear (and is the only
+   revealed control on root rows, which have no gear). */
+.folder-add-subfolder {
+  margin-right: 4px;
+  line-height: 1;
+}
+
 .folder-row:hover .folder-settings-toggle,
 .folder-settings-toggle:focus-visible,
-.folder-settings-toggle--open {
+.folder-settings-toggle--open,
+.folder-row:hover .folder-add-subfolder,
+.folder-add-subfolder:focus-visible,
+.folder-add-subfolder--open {
   opacity: 1;
 }
 

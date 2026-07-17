@@ -31,6 +31,28 @@ describe("createFolder", () => {
     expect(result).toEqual({ ok: false, error: "empty-title" });
     expect(mock.chrome.bookmarks.create).not.toHaveBeenCalled();
   });
+
+  it("places the folder at a given index (first child) when index is provided", async () => {
+    const result = await createFolder("1", "First", 0);
+
+    expect(result.ok).toBe(true);
+    expect(mock.chrome.bookmarks.create).toHaveBeenCalledWith({
+      parentId: "1",
+      title: "First",
+      index: 0,
+    });
+  });
+
+  it("omits index (appends at end) when index is not provided", async () => {
+    await createFolder("1", "Last");
+
+    expect(mock.chrome.bookmarks.create).toHaveBeenCalledWith({
+      parentId: "1",
+      title: "Last",
+    });
+    const call = mock.chrome.bookmarks.create.mock.calls[0]?.[0];
+    expect(call).not.toHaveProperty("index");
+  });
 });
 
 describe("createBookmark", () => {

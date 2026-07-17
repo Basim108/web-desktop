@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FolderTreeNode } from "./FolderTreeNode";
+import type { OpenFolderWindow } from "./FolderTreeNode";
 import { useSidebarResize } from "../hooks/useSidebarResize";
 
 interface SidebarProps {
@@ -22,9 +23,11 @@ export function Sidebar({
   onOpenSettings,
 }: SidebarProps) {
   const { width, isDragging, startDrag } = useSidebarResize(viewportWidth);
-  const [openSettingsFolderId, setOpenSettingsFolderId] = useState<
-    string | undefined
-  >(undefined);
+  // Exactly one folder window is open at a time across the whole sidebar —
+  // either an existing folder's settings or a new-folder draft under a parent.
+  const [openWindow, setOpenWindow] = useState<OpenFolderWindow | undefined>(
+    undefined,
+  );
 
   const resizeHandle = (
     <div
@@ -80,8 +83,8 @@ export function Sidebar({
               activeFolderId={activeFolderId}
               onSelectFolder={onSelectFolder}
               depth={0}
-              openSettingsFolderId={openSettingsFolderId}
-              onOpenSettings={setOpenSettingsFolderId}
+              openWindow={openWindow}
+              onSetOpenWindow={setOpenWindow}
             />
           ))}
         </ul>
