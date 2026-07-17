@@ -197,6 +197,93 @@ describe("FolderSettingsWindow", () => {
   });
 });
 
+function renderCreateWindow(parentId = "parent1") {
+  const onClose = vi.fn();
+  const onSaved = vi.fn();
+  // Give the parent a real node so getSubfolders(parentId) can enumerate the
+  // child the draft creates.
+  mock.addNode(folderNode(parentId, "Parent"));
+  render(
+    <FolderSettingsWindow
+      createParentId={parentId}
+      onSaved={onSaved}
+      onClose={onClose}
+    />,
+  );
+  return { onClose, onSaved };
+}
+
+describe("FolderSettingsWindow — new folder (draft) mode", () => {
+  it("titles for a new folder, starts empty, and hides removal and import", () => {
+    renderCreateWindow();
+
+    expect(screen.getByText("New Folder")).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Remove folder" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Import Bookmarks/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("creates the folder as a first child (index 0) only on Save", async () => {
+    const user = userEvent.setup();
+    const { onClose, onSaved } = renderCreateWindow("parent1");
+
+    await user.type(screen.getByLabelText("Name"), "New");
+    // Nothing created before Save.
+    expect(mock.chrome.bookmarks.create).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(mock.chrome.bookmarks.create).toHaveBeenCalledWith({
+      parentId: "parent1",
+      title: "New",
+      index: 0,
+    });
+    expect(onSaved).toHaveBeenCalled();
+    const subfolders = await getSubfolders("parent1");
+    expect(subfolders.map((f) => f.title)).toContain("New");
+  });
+
+  it("applies a staged icon to the created folder on Save", async () => {
+    stubImageBitmap();
+    const user = userEvent.setup();
+    const { onClose } = renderCreateWindow("parent2");
+
+    await user.type(screen.getByLabelText("Name"), "Iconed");
+    await user.upload(screen.getByLabelText("Upload image"), pngFile());
+    await waitFor(() => {
+      const preview = screen.getByRole("img", { name: "New folder" });
+      expect(preview.getAttribute("src")).toMatch(/^blob:/);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const created = (await getSubfolders("parent2")).find(
+      (f) => f.title === "Iconed",
+    )!;
+    expect(await getIcon(created.id)).toBeDefined();
+    expect((await getFolderSettings(created.id)).hasCustomIcon).toBe(true);
+  });
+
+  it("writes nothing when closed via Escape without saving", async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderCreateWindow("parent3");
+
+    await user.type(screen.getByLabelText("Name"), "Discarded");
+    await user.keyboard("{Escape}");
+
+    expect(onClose).toHaveBeenCalled();
+    expect(mock.chrome.bookmarks.create).not.toHaveBeenCalled();
+    expect(await getSubfolders("parent3")).toEqual([]);
+  });
+});
+
 function jsonFile(value: unknown, name = "utab.json"): File {
   return new File([JSON.stringify(value)], name, {
     type: "application/json",

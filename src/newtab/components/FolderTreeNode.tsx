@@ -7,15 +7,24 @@ import { DEFAULT_FOLDER_ICON_KEY } from "../../lib/storage/defaultFolderIcon";
 import { CustomIconImage } from "./CustomIconImage";
 import { FolderSettingsWindow } from "./FolderSettingsWindow";
 
+/**
+ * Which folder window is open across the whole sidebar, if any. Lifted to
+ * Sidebar so exactly one window (an existing folder's settings, or a new-folder
+ * draft under some parent) is ever open at a time — opening either closes the
+ * other.
+ */
+export type OpenFolderWindow =
+  { kind: "edit"; folderId: string } | { kind: "add"; parentId: string };
+
 interface FolderTreeNodeProps {
   folder: chrome.bookmarks.BookmarkTreeNode;
   activeFolderId: string | undefined;
   onSelectFolder: (folderId: string) => void;
   depth: number;
-  /** Id of the folder whose settings window is currently open across the whole sidebar, or undefined if none is. */
-  openSettingsFolderId: string | undefined;
-  /** Opens this folder's settings window (pass its id) or closes whichever one is open (pass undefined). Lifted to Sidebar so only one window is ever open at a time. */
-  onOpenSettings: (folderId: string | undefined) => void;
+  /** The window currently open across the whole sidebar, or undefined if none is. */
+  openWindow: OpenFolderWindow | undefined;
+  /** Opens a folder window (edit this folder or add a subfolder under it) or closes whichever one is open (pass undefined). Lifted to Sidebar so only one window is ever open at a time. */
+  onSetOpenWindow: (next: OpenFolderWindow | undefined) => void;
 }
 
 export function FolderTreeNode({
@@ -23,15 +32,19 @@ export function FolderTreeNode({
   activeFolderId,
   onSelectFolder,
   depth,
-  openSettingsFolderId,
-  onOpenSettings,
+  openWindow,
+  onSetOpenWindow,
 }: FolderTreeNodeProps) {
   const [expanded, setExpanded] = useState(false);
   // Chrome's protected top-level folders (Bookmarks Bar, Other Bookmarks,
   // Mobile Bookmarks) are always the sidebar's depth-0 rows. They are not
   // editable (no settings gear) and not draggable, but remain drop targets.
+  // They can still hold subfolders, so they do get the add-subfolder button.
   const isRoot = depth === 0;
-  const settingsOpen = !isRoot && openSettingsFolderId === folder.id;
+  const settingsOpen =
+    !isRoot && openWindow?.kind === "edit" && openWindow.folderId === folder.id;
+  const draftOpen =
+    openWindow?.kind === "add" && openWindow.parentId === folder.id;
   const { folders: subfolders } = useSubfolders(folder.id);
   const { settings, reload, version } = useFolderSettings(folder.id);
 
@@ -112,12 +125,33 @@ export function FolderTreeNode({
           <span className="folder-label">{folder.title}</span>
         </button>
 
+        <button
+          type="button"
+          className={`folder-add-subfolder${draftOpen ? " folder-add-subfolder--open" : ""}`}
+          aria-label="Add subfolder"
+          title="Create Folder"
+          onClick={() =>
+            onSetOpenWindow(
+              draftOpen ? undefined : { kind: "add", parentId: folder.id },
+            )
+          }
+        >
+          +
+        </button>
+
         {!isRoot && (
           <button
             type="button"
             className={`folder-settings-toggle${settingsOpen ? " folder-settings-toggle--open" : ""}`}
             aria-label="Folder settings"
-            onClick={() => onOpenSettings(settingsOpen ? undefined : folder.id)}
+            title="Folder Settings"
+            onClick={() =>
+              onSetOpenWindow(
+                settingsOpen
+                  ? undefined
+                  : { kind: "edit", folderId: folder.id },
+              )
+            }
           >
             ⚙
           </button>
@@ -129,7 +163,17 @@ export function FolderTreeNode({
             settings={settings}
             iconVersion={version}
             onSaved={reload}
-            onClose={() => onOpenSettings(undefined)}
+            onClose={() => onSetOpenWindow(undefined)}
+          />
+        )}
+
+        {draftOpen && (
+          <FolderSettingsWindow
+            createParentId={folder.id}
+            // Reveal the newly created first child by expanding this row; the
+            // subfolder list refreshes itself via live bookmark sync.
+            onSaved={() => setExpanded(true)}
+            onClose={() => onSetOpenWindow(undefined)}
           />
         )}
       </div>
@@ -143,8 +187,8 @@ export function FolderTreeNode({
               activeFolderId={activeFolderId}
               onSelectFolder={onSelectFolder}
               depth={depth + 1}
-              openSettingsFolderId={openSettingsFolderId}
-              onOpenSettings={onOpenSettings}
+              openWindow={openWindow}
+              onSetOpenWindow={onSetOpenWindow}
             />
           ))}
         </ul>

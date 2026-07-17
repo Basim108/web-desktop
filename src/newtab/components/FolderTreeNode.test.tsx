@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installChromeMock } from "../../test/chromeMock";
 import { DndTestProvider } from "../../test/DndTestProvider";
 import { FolderTreeNode } from "./FolderTreeNode";
+import type { OpenFolderWindow } from "./FolderTreeNode";
 
 const mock = installChromeMock();
 
@@ -21,11 +22,10 @@ beforeEach(() => {
 });
 
 /**
- * Owns the shared openSettingsFolderId state the same way Sidebar does, so
- * tests exercise the real single-window-open-at-a-time coordination rather
- * than a stand-in. FolderTreeNode relies (via useSubfolders) on
- * useDndMonitor, which requires a DndContext ancestor — in the real app
- * that's provided by App.
+ * Owns the shared open-window state the same way Sidebar does, so tests
+ * exercise the real single-window-open-at-a-time coordination rather than a
+ * stand-in. FolderTreeNode relies (via useSubfolders) on useDndMonitor, which
+ * requires a DndContext ancestor — in the real app that's provided by App.
  *
  * `depth` defaults to 1 (an editable, non-root folder). Root behavior is
  * exercised explicitly with depth 0.
@@ -41,9 +41,9 @@ function Harness({
   onSelectFolder: (folderId: string) => void;
   depth?: number;
 }) {
-  const [openSettingsFolderId, setOpenSettingsFolderId] = useState<
-    string | undefined
-  >(undefined);
+  const [openWindow, setOpenWindow] = useState<OpenFolderWindow | undefined>(
+    undefined,
+  );
 
   return (
     <DndTestProvider>
@@ -55,8 +55,8 @@ function Harness({
             activeFolderId={activeFolderId}
             onSelectFolder={onSelectFolder}
             depth={depth}
-            openSettingsFolderId={openSettingsFolderId}
-            onOpenSettings={setOpenSettingsFolderId}
+            openWindow={openWindow}
+            onSetOpenWindow={setOpenWindow}
           />
         ))}
       </ul>
@@ -209,6 +209,69 @@ describe("FolderTreeNode", () => {
 
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(screen.getByLabelText("Name")).toHaveValue("Personal");
+  });
+
+  describe("add subfolder button", () => {
+    it("renders on a non-root row and opens a New Folder draft when clicked", async () => {
+      const user = userEvent.setup();
+      renderFolderTreeNode({
+        folder: folderNode("f1", "1", "Work"),
+        activeFolderId: undefined,
+        onSelectFolder: vi.fn(),
+        depth: 1,
+      });
+
+      const addButton = screen.getByRole("button", { name: "Add subfolder" });
+      expect(addButton).toHaveClass("folder-add-subfolder");
+      // Native hover tooltip, distinct from the accessible name.
+      expect(addButton).toHaveAttribute("title", "Create Folder");
+      expect(
+        screen.getByRole("button", { name: "Folder settings" }),
+      ).toHaveAttribute("title", "Folder Settings");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      await user.click(addButton);
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      // Draft mode: titled for a new folder, empty name, and no removal.
+      expect(screen.getByText("New Folder")).toBeInTheDocument();
+      expect(screen.getByLabelText("Name")).toHaveValue("");
+      expect(
+        screen.queryByRole("button", { name: "Remove folder" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders on a root row too, even though the gear does not", () => {
+      renderFolderTreeNode({
+        folder: folderNode("1", "0", "Bookmarks Bar"),
+        activeFolderId: undefined,
+        onSelectFolder: vi.fn(),
+        depth: 0,
+      });
+
+      expect(
+        screen.getByRole("button", { name: "Add subfolder" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Folder settings" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("toggles the draft closed when the add button is clicked again", async () => {
+      const user = userEvent.setup();
+      renderFolderTreeNode({
+        folder: folderNode("f1", "1", "Work"),
+        activeFolderId: undefined,
+        onSelectFolder: vi.fn(),
+        depth: 1,
+      });
+
+      await user.click(screen.getByRole("button", { name: "Add subfolder" }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Add subfolder" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 
   describe("root folders (depth 0)", () => {

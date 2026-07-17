@@ -13,16 +13,25 @@ export type BookmarkCreateResult =
  * whitespace-only title is rejected, matching updateFolderTitle in edit.ts,
  * so an import can never produce a nameless folder. Returns the created node
  * because the caller needs its Chrome-assigned id to attach a custom icon.
+ *
+ * When `index` is given it is forwarded to chrome.bookmarks.create so the
+ * folder lands at that position among its siblings (e.g. `0` for a first
+ * child); omitting it keeps Chrome's default append-at-end behavior.
  */
 export async function createFolder(
   parentId: string,
   title: string,
+  index?: number,
 ): Promise<BookmarkCreateResult> {
   const trimmed = title.trim();
   if (trimmed.length === 0) {
     return { ok: false, error: "empty-title" };
   }
-  const node = await chrome.bookmarks.create({ parentId, title: trimmed });
+  const node = await chrome.bookmarks.create({
+    parentId,
+    title: trimmed,
+    ...(index !== undefined && { index }),
+  });
   return { ok: true, node };
 }
 
