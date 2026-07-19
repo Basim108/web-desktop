@@ -50,12 +50,46 @@ async function cleanUpRemovedSubtree(
 let importInProgress = false;
 const importTouchedFolders = new Set<string>();
 
+// Extension-state transfer lock. While held (set from the newtab importer via a
+// runtime message, since the importer and these listeners run in different
+// contexts), the position/cleanup listeners stand down: a replace-import writes
+// all positions/settings itself and deletes everything, so auto-placement and
+// per-item cleanup would only fight it. The flag lives in whichever context ran
+// registerBookmarkListeners (the background service worker).
+let transferImportLocked = false;
+
+/** Message the importer sends to toggle the background transfer lock. */
+export interface TransferLockMessage {
+  type: "transfer:setLock";
+  locked: boolean;
+}
+
+function isTransferLockMessage(
+  message: unknown,
+): message is TransferLockMessage {
+  return (
+    typeof message === "object" &&
+    message !== null &&
+    (message as { type?: unknown }).type === "transfer:setLock" &&
+    typeof (message as { locked?: unknown }).locked === "boolean"
+  );
+}
+
 /**
  * Wires the chrome.bookmarks listeners that keep stored positions
  * consistent with live bookmark structure changes. Safe to call once per
  * service worker lifetime (e.g. from the background entry point).
  */
 export function registerBookmarkListeners(): void {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (isTransferLockMessage(message)) {
+      transferImportLocked = message.locked;
+      sendResponse({ ok: true });
+      return true;
+    }
+    return undefined;
+  });
+
   chrome.bookmarks.onImportBegan.addListener(() => {
     importInProgress = true;
     importTouchedFolders.clear();
@@ -71,6 +105,9 @@ export function registerBookmarkListeners(): void {
   });
 
   chrome.bookmarks.onCreated.addListener((id, bookmark) => {
+    if (transferImportLocked) {
+      return;
+    }
     if (!isBookmark(bookmark) || !bookmark.parentId) {
       return;
     }
@@ -83,12 +120,18 @@ export function registerBookmarkListeners(): void {
   });
 
   chrome.bookmarks.onRemoved.addListener((_id, removeInfo) => {
+    if (transferImportLocked) {
+      return;
+    }
     void mutex.runExclusive(() =>
       cleanUpRemovedSubtree(removeInfo.node, removeInfo.parentId),
     );
   });
 
   chrome.bookmarks.onMoved.addListener((id, moveInfo) => {
+    if (transferImportLocked) {
+      return;
+    }
     // Same-parent moves are Chrome-native reordering (e.g. dragging within
     // its bookmark manager) and must be ignored per the position model:
     // stored positions are never re-derived from Chrome's own order.
@@ -120,6 +163,23 @@ export function registerBookmarkListeners(): void {
 
 const localChangeSubscribers = new Set<() => void>();
 
+// When suspended (during a state-transfer import in this same context), the
+// live-refetch subscribers stop firing so the delete/create storm doesn't cause
+// a refetch per event; resumeBookmarkSubscribers + forceBookmarkResync catch the
+// UI up in a single pass on release. This is the newtab half of the transfer
+// lock (the background half is transferImportLocked, reached by runtime message).
+let subscribersSuspended = false;
+
+/** Suspends live UI refetches. Idempotent. */
+export function suspendBookmarkSubscribers(): void {
+  subscribersSuspended = true;
+}
+
+/** Resumes live UI refetches. Idempotent — safe to call even if never suspended. */
+export function resumeBookmarkSubscribers(): void {
+  subscribersSuspended = false;
+}
+
 /**
  * Subscribes to any chrome.bookmarks structure event — create, remove,
  * move, title/url change, or native reorder — regardless of whether it
@@ -131,18 +191,25 @@ const localChangeSubscribers = new Set<() => void>();
  */
 export function subscribeToBookmarkChanges(callback: () => void): () => void {
   localChangeSubscribers.add(callback);
-  chrome.bookmarks.onCreated.addListener(callback);
-  chrome.bookmarks.onRemoved.addListener(callback);
-  chrome.bookmarks.onMoved.addListener(callback);
-  chrome.bookmarks.onChanged.addListener(callback);
-  chrome.bookmarks.onChildrenReordered.addListener(callback);
+  // The raw callback is tracked (for forceBookmarkResync); the guarded wrapper
+  // is what actually listens, so it can no-op while subscribers are suspended.
+  const guarded = () => {
+    if (!subscribersSuspended) {
+      callback();
+    }
+  };
+  chrome.bookmarks.onCreated.addListener(guarded);
+  chrome.bookmarks.onRemoved.addListener(guarded);
+  chrome.bookmarks.onMoved.addListener(guarded);
+  chrome.bookmarks.onChanged.addListener(guarded);
+  chrome.bookmarks.onChildrenReordered.addListener(guarded);
   return () => {
     localChangeSubscribers.delete(callback);
-    chrome.bookmarks.onCreated.removeListener(callback);
-    chrome.bookmarks.onRemoved.removeListener(callback);
-    chrome.bookmarks.onMoved.removeListener(callback);
-    chrome.bookmarks.onChanged.removeListener(callback);
-    chrome.bookmarks.onChildrenReordered.removeListener(callback);
+    chrome.bookmarks.onCreated.removeListener(guarded);
+    chrome.bookmarks.onRemoved.removeListener(guarded);
+    chrome.bookmarks.onMoved.removeListener(guarded);
+    chrome.bookmarks.onChanged.removeListener(guarded);
+    chrome.bookmarks.onChildrenReordered.removeListener(guarded);
   };
 }
 

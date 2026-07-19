@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { BACKGROUND_ERROR_MESSAGES } from "../../lib/icons/errorMessages";
@@ -9,6 +9,26 @@ import {
 } from "../../lib/storage/canvasBackground";
 import { setCanvasBackground } from "../../lib/storage/generalSettings";
 import type { BackgroundFit, CanvasBackground } from "../../lib/storage/schema";
+import {
+  downloadJson,
+  exportFileName,
+  reportFileName,
+} from "../../lib/transfer/download";
+import { exportState } from "../../lib/transfer/exportState";
+import { importState } from "../../lib/transfer/importState";
+import type {
+  ImportChoice,
+  ImportDenial,
+} from "../../lib/transfer/importState";
+
+const DENIAL_MESSAGES: Record<ImportDenial, string> = {
+  "invalid-json": "That file isn't a valid Bookmark Desktop backup.",
+  "invalid-version": "That file isn't a valid Bookmark Desktop backup.",
+  "too-old":
+    "This backup uses an older format this version can no longer import.",
+  "too-new":
+    "This backup was made by a newer version. Please update the extension and try again.",
+};
 
 interface GeneralSettingsWindowProps {
   /** The currently saved canvas background, used to seed the staged state. */
@@ -62,6 +82,96 @@ export function GeneralSettingsWindow({
   const [error, setError] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
 
+  // Export/Import ("Backup & Restore"). `busy` disables all footer buttons
+  // while any of them runs; `transferMessage` shows an import denial (a
+  // successful export closes the window; a successful import reloads the page).
+  const [busy, setBusy] = useState(false);
+  const [transferMessage, setTransferMessage] = useState<string | undefined>(
+    undefined,
+  );
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Custom Yes/No/Cancel backup confirmation. `confirmImport` opens it and
+  // returns a promise resolved when the user clicks a choice; the resolver is
+  // held in a ref so the button handlers can settle the awaiting import.
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmResolverRef = useRef<((choice: ImportChoice) => void) | null>(
+    null,
+  );
+
+  // After an import that skipped entries: the summary the user must acknowledge
+  // before the page reloads (so the message isn't erased by an immediate reload).
+  const [summary, setSummary] = useState<
+    { skipped: number; reportName: string } | undefined
+  >(undefined);
+
+  function answerConfirm(choice: ImportChoice) {
+    setConfirmOpen(false);
+    confirmResolverRef.current?.(choice);
+    confirmResolverRef.current = null;
+  }
+
+  async function runBackup() {
+    downloadJson(await exportState(), exportFileName());
+  }
+
+  async function handleExport() {
+    if (busy || saving) return;
+    setBusy(true);
+    setTransferMessage(undefined);
+    try {
+      await runBackup();
+      onClose(); // behaves like Save: closes on success
+    } catch {
+      setTransferMessage("Export failed. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || busy || saving) return;
+
+    setBusy(true);
+    setTransferMessage(undefined);
+    try {
+      const text = await file.text();
+      const result = await importState(text, {
+        confirmImport: () =>
+          new Promise<ImportChoice>((resolve) => {
+            confirmResolverRef.current = resolve;
+            setConfirmOpen(true);
+          }),
+        performBackup: runBackup,
+      });
+
+      if (result.ok) {
+        if (result.skipped.length > 0) {
+          const reportName = reportFileName(file.name);
+          downloadJson(result.skipped, reportName);
+          // Don't reload yet — show a summary pointing at the report file and
+          // reload only once the user acknowledges it (a reload would erase it).
+          setSummary({ skipped: result.skipped.length, reportName });
+          return;
+        }
+        // Clean import: reload so the fully replaced tree renders with a valid
+        // selection (React state still holds now-deleted folder ids). This also
+        // dismisses the window.
+        window.location.reload();
+        return;
+      }
+      if ("denied" in result) {
+        setTransferMessage(DENIAL_MESSAGES[result.denied]);
+      }
+      // aborted (user chose Cancel): stay open silently.
+      setBusy(false);
+    } catch {
+      setTransferMessage("Import failed. Please try again.");
+      setBusy(false);
+    }
+  }
+
   // Whether a background image will exist after Save, given the staged state.
   const hasBackgroundNow =
     pending.kind === "upload" ||
@@ -77,11 +187,22 @@ export function GeneralSettingsWindow({
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      // A shown summary must be acknowledged with Reload; don't dismiss it.
+      if (summary) return;
+      // Escape cancels a pending import confirmation (settling its promise)
+      // rather than closing the whole window and leaving the import hung.
+      if (confirmOpen) {
+        setConfirmOpen(false);
+        confirmResolverRef.current?.("cancel");
+        confirmResolverRef.current = null;
+        return;
+      }
+      onClose();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  }, [onClose, confirmOpen, summary]);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -154,19 +275,100 @@ export function GeneralSettingsWindow({
     );
   }
 
+  // While a confirmation or post-import summary is showing, the window renders
+  // only that panel (so it collapses to the panel's natural size), takes the
+  // alertdialog role, and its backdrop/close no longer dismiss it — the panel's
+  // own buttons are the only way out.
+  const overlay = confirmOpen ? "confirm" : summary ? "summary" : undefined;
+
   return createPortal(
     <div
       className="general-settings-window-backdrop"
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (!overlay && event.target === event.currentTarget) onClose();
       }}
     >
       <div
         className="general-settings-window"
-        role="dialog"
+        role={overlay ? "alertdialog" : "dialog"}
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-label={overlay ? "Import Bookmarks" : undefined}
+        aria-labelledby={overlay ? undefined : titleId}
       >
+        {overlay === "confirm" ? (
+          <>
+            <div className="general-settings-window-titlebar">
+              <span className="general-settings-window-title">
+                Import Bookmarks
+              </span>
+            </div>
+            <div className="general-settings-confirm">
+              <p className="general-settings-confirm-text">
+                Importing will <strong>replace</strong> all of your current
+                bookmarks and desktop settings. Back up your current setup
+                first?
+              </p>
+              <div className="general-settings-confirm-actions">
+                <button
+                  type="button"
+                  className="general-settings-window-transfer"
+                  onClick={() => answerConfirm("cancel")}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="general-settings-window-transfer"
+                  onClick={() => answerConfirm("no-backup")}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  className="general-settings-window-save"
+                  onClick={() => answerConfirm("backup")}
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </>
+        ) : overlay === "summary" ? (
+          <>
+            <div className="general-settings-window-titlebar">
+              <span className="general-settings-window-title">
+                Import Bookmarks
+              </span>
+            </div>
+            <div className="general-settings-confirm">
+              <p className="general-settings-confirm-text">
+                Import finished, but {summary!.skipped} item
+                {summary!.skipped === 1 ? "" : "s"} could not be imported. A
+                report was saved to your downloads as{" "}
+                <strong>{summary!.reportName}</strong>.
+              </p>
+              <div className="general-settings-confirm-actions">
+                <button
+                  type="button"
+                  className="general-settings-window-save"
+                  onClick={() => window.location.reload()}
+                >
+                  Reload
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          renderSettingsBody()
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+
+  function renderSettingsBody() {
+    return (
+      <>
         <div className="general-settings-window-titlebar">
           <span id={titleId} className="general-settings-window-title">
             Settings
@@ -252,18 +454,49 @@ export function GeneralSettingsWindow({
           </div>
         </div>
 
+        {transferMessage && (
+          <p className="general-settings-window-transfer-message" role="alert">
+            {transferMessage}
+          </p>
+        )}
+
         <div className="general-settings-window-actions">
+          <div className="general-settings-window-actions-left">
+            <button
+              type="button"
+              className="general-settings-window-transfer"
+              onClick={() => void handleExport()}
+              disabled={busy || saving}
+            >
+              Export
+            </button>
+            <button
+              type="button"
+              className="general-settings-window-transfer"
+              onClick={() => importInputRef.current?.click()}
+              disabled={busy || saving}
+            >
+              Import
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json,application/json"
+              aria-label="Import backup file"
+              className="general-settings-window-upload-input"
+              onChange={(event) => void handleImportFile(event)}
+            />
+          </div>
           <button
             type="button"
             className="general-settings-window-save"
             onClick={() => void handleSave()}
-            disabled={saving}
+            disabled={saving || busy}
           >
             Save
           </button>
         </div>
-      </div>
-    </div>,
-    document.body,
-  );
+      </>
+    );
+  }
 }

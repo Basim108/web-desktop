@@ -37,11 +37,17 @@ export function useSubfolders(folderId: string): UseSubfoldersResult {
 
   useEffect(() => {
     let cancelled = false;
-    void getSubfolders(folderId).then((result) => {
-      if (!cancelled) {
-        setState({ folderId, folders: result });
-      }
-    });
+    void getSubfolders(folderId)
+      .then((result) => {
+        if (!cancelled) {
+          setState({ folderId, folders: result });
+        }
+      })
+      // The folder can be deleted out from under us — a state-transfer import
+      // replaces the whole tree, or the folder is removed in Chrome's native
+      // manager — leaving a stale id whose read rejects. Swallow it; a
+      // resync/reload settles the view.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };

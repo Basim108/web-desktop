@@ -891,6 +891,7 @@ body {
 }
 
 .general-settings-window {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 440px;
@@ -1072,9 +1073,59 @@ body {
 .general-settings-window-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
   padding: 16px 20px 20px;
+}
+
+.general-settings-window-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.general-settings-window-transfer {
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: inherit;
+  background: none;
+  border: 1px solid light-dark(#ccc, #555);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.general-settings-window-transfer:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.general-settings-window-transfer-message {
+  margin: 0;
+  padding: 0 20px;
+  font-size: 0.8rem;
+  color: light-dark(#b00020, #ff6b6b);
+}
+
+/* Custom Yes/No/Cancel backup confirmation and the post-import summary. Rendered
+   as the window's sole content while active, so the window collapses to fit it. */
+.general-settings-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+}
+
+.general-settings-confirm-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.general-settings-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .general-settings-window-save {
