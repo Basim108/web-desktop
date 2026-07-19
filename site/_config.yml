@@ -1,0 +1,17 @@
+# Jekyll config for the published site.
+#
+# The site exists for one reason: to host the privacy policy at a stable URL
+# the Chrome Web Store dashboard can point at. Its only page is built from the
+# repository's PRIVACY.md at deploy time (see .github/workflows/pages.yml), so
+# that file stays the single source of truth and the published policy can never
+# drift from the one in the repo.
+title: Bookmark Desktop
+description: A Chrome extension that turns your new tab into a desktop of bookmarks.
+theme: jekyll-theme-minimal
+
+# Project site, not a user site: everything is served under /bookmark-desktop.
+baseurl: /bookmark-desktop
+url: https://basim108.github.io
+
+# Nothing here is a blog.
+show_downloads: false

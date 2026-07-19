@@ -6,9 +6,14 @@ covers everything else. Keep both in sync when behavior changes.
 
 ## Privacy policy URL
 
-Publish `PRIVACY.md` at a stable public URL and enter it here.
+```
+https://basim108.github.io/bookmark-desktop/privacy/
+```
 
-- [ ] URL: _(to be filled once hosted — see the note at the bottom)_
+Served by GitHub Pages from the repository's own `PRIVACY.md` — the page is
+assembled from that file at deploy time (`.github/workflows/pages.yml`), so the
+published policy can never drift from the one in the repo. Editing `PRIVACY.md`
+on `main` republishes it.
 
 ## Data-use disclosures
 
@@ -85,15 +90,22 @@ helps review go smoothly:
   key handling: move the `.pem` to a vault immediately after packing, and never
   commit it.
 
-## Open decision: where to host the privacy policy
+## How the privacy policy is hosted
 
-The dashboard needs a URL that stays stable across releases. Two workable
-options:
+Settled: GitHub Pages, built by `.github/workflows/pages.yml`. The alternative
+was linking the rendered markdown at
+`https://github.com/Basim108/bookmark-desktop/blob/main/PRIVACY.md` — zero setup
+and acceptable to reviewers, but the URL is branch-coupled and reads worse on a
+store listing.
 
-1. **GitHub Pages** — enable Pages on the repo and publish `PRIVACY.md`; gives a
-   clean URL like `https://basim108.github.io/bookmark-desktop/privacy`.
-2. **Rendered repo markdown** — link
-   `https://github.com/Basim108/bookmark-desktop/blob/main/PRIVACY.md` directly.
-   Zero setup, and acceptable to reviewers, but the URL is branch-coupled.
+Notes on the setup:
 
-Option 2 is enough to submit; option 1 reads better on the listing.
+- Pages is configured with **Source: GitHub Actions**, not "Deploy from a
+  branch". The branch option only serves the repo root or `/docs`, and `/docs`
+  would have published this file — internal submission notes — alongside the
+  policy. The workflow publishes the policy page and nothing else.
+- The site is rebuilt on any push to `main` that touches `PRIVACY.md`,
+  `site/**`, or the workflow itself, and can be run on demand from the Actions
+  tab (`workflow_dispatch`).
+- To change the policy, edit `PRIVACY.md` and merge to `main`. Don't edit a
+  copy under `site/` — there isn't one, by design.

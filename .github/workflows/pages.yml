@@ -1,0 +1,64 @@
+name: Publish site
+
+# Publishes the privacy policy to GitHub Pages so the Chrome Web Store
+# dashboard has a stable URL to point at:
+#   https://basim108.github.io/bookmark-desktop/privacy/
+#
+# The page is built from the repository's PRIVACY.md rather than a copy kept
+# under site/, so the published policy is always the one in the repo. Editing
+# PRIVACY.md on main is all it takes to update the live policy.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "PRIVACY.md"
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a deploy midway; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the site source
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          cp -r site/. build/
+          # Front matter drives the permalink; the body is PRIVACY.md verbatim.
+          {
+            printf -- '---\ntitle: Privacy Policy\npermalink: /privacy/\n---\n\n'
+            cat PRIVACY.md
+          } > build/privacy.md
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./build
+          destination: ./_site
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
