@@ -26,3 +26,20 @@ export function dataUrlToBlob(value: string): Blob | undefined {
     return undefined;
   }
 }
+
+/**
+ * Encodes a Blob as a base64 data URL (the inverse of dataUrlToBlob), used by
+ * export to inline a stored icon's bytes into the JSON file. Reads the bytes and
+ * base64-encodes them directly rather than via FileReader so it works uniformly
+ * across page and worker contexts; the Blob's MIME type is preserved so the
+ * decoded Blob round-trips with the same `type`.
+ */
+export async function blobToDataUrl(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  const mimeType = blob.type || "application/octet-stream";
+  return `data:${mimeType};base64,${btoa(binary)}`;
+}

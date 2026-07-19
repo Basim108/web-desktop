@@ -71,11 +71,17 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
   useEffect(() => {
     let cancelled = false;
     previousCapacityRef.current = null;
-    void getBookmarksInFolder(folderId).then((bookmarks) => {
-      if (!cancelled) {
-        setFolderData({ folderId, bookmarks });
-      }
-    });
+    void getBookmarksInFolder(folderId)
+      .then((bookmarks) => {
+        if (!cancelled) {
+          setFolderData({ folderId, bookmarks });
+        }
+      })
+      // The folder can vanish out from under us (e.g. a state-transfer import
+      // replaces the whole tree, or a native-manager deletion of the folder
+      // we're viewing), leaving a stale id whose read rejects. Swallow it — a
+      // resync/reload settles the view — rather than surface an uncaught error.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -92,13 +98,17 @@ export function useGridLayout(folderId: string): UseGridLayoutResult {
   useEffect(
     () =>
       subscribeToBookmarkChanges(() => {
-        void getBookmarksInFolder(folderId).then((bookmarks) => {
-          setFolderData((current) =>
-            current && current.folderId === folderId
-              ? { ...current, bookmarks }
-              : current,
-          );
-        });
+        void getBookmarksInFolder(folderId)
+          .then((bookmarks) => {
+            setFolderData((current) =>
+              current && current.folderId === folderId
+                ? { ...current, bookmarks }
+                : current,
+            );
+          })
+          // Selected folder may have just been deleted (see the load effect
+          // above); a stale-id read must not surface as an uncaught rejection.
+          .catch(() => {});
       }),
     [folderId],
   );

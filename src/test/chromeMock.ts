@@ -71,9 +71,35 @@ export function installChromeMock() {
     onImportEnded: createEvent<() => void>(),
   };
 
+  type MessageListener = (
+    message: unknown,
+    sender: unknown,
+    sendResponse: (response?: unknown) => void,
+  ) => boolean | void;
+  const messageListeners = new Set<MessageListener>();
+  const runtimeOnMessage = {
+    addListener: (fn: MessageListener) => messageListeners.add(fn),
+    removeListener: (fn: MessageListener) => messageListeners.delete(fn),
+    hasListeners: () => messageListeners.size > 0,
+    clearListeners: () => messageListeners.clear(),
+  };
+
   const chromeMock = {
     runtime: {
       getURL: (path: string) => `chrome-extension://test-extension-id${path}`,
+      onMessage: runtimeOnMessage,
+      // Synchronously dispatches to registered onMessage listeners (single JS
+      // realm in tests) and resolves with the last sendResponse value, so the
+      // importer's lock ack round-trip can be awaited without a real SW.
+      sendMessage: vi.fn(async (message: unknown): Promise<unknown> => {
+        let response: unknown;
+        for (const listener of messageListeners) {
+          listener(message, { id: "test-extension-id" }, (value?: unknown) => {
+            response = value;
+          });
+        }
+        return response;
+      }),
     },
     storage: {
       local: {
@@ -144,6 +170,31 @@ export function installChromeMock() {
             .sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
         },
       ),
+      getTree: vi.fn(async (): Promise<chrome.bookmarks.BookmarkTreeNode[]> => {
+        // Build the hierarchy from the flat node map, rooted at the synthetic
+        // root "0" whose children are the top-level nodes (parentId "0").
+        function build(id: string): chrome.bookmarks.BookmarkTreeNode {
+          const current = bookmarkNodes.get(id)!;
+          const children = [...bookmarkNodes.values()]
+            .filter((child) => child.parentId === id)
+            .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+            .map((child) => build(child.id));
+          return children.length > 0
+            ? { ...current, children }
+            : { ...current };
+        }
+        const topLevel = [...bookmarkNodes.values()]
+          .filter((node) => node.parentId === "0")
+          .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+          .map((node) => build(node.id));
+        const root: chrome.bookmarks.BookmarkTreeNode = {
+          id: "0",
+          title: "",
+          syncing: false,
+          children: topLevel,
+        };
+        return [root];
+      }),
       get: vi.fn(
         async (
           idOrIdList: string | string[],
@@ -242,6 +293,7 @@ export function installChromeMock() {
         event.clearListeners();
       }
       storageOnChanged.clearListeners();
+      runtimeOnMessage.clearListeners();
     },
   };
 }
